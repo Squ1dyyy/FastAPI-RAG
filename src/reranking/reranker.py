@@ -23,7 +23,7 @@ class BaseReranker(ABC):
 
 
 class CrossEncoderReranker(BaseReranker):
-	"""GPU-accelerated lightweight Cross-Encoder reranker (`cross-encoder/ms-marco-TinyBERT-L-2-v2`)."""
+	"""GPU-accelerated lightweight Multilingual Cross-Encoder reranker (`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`)."""
 
 	def __init__(
 		self,
@@ -80,20 +80,13 @@ class CrossEncoderReranker(BaseReranker):
 			)
 		]
 
-		max_ce = max(scores) if scores else 0.0
-		low_ce_confidence = max_ce < -3.0
-
 		reranked = []
 		for idx, (doc, score) in enumerate(zip(documents, scores), start=1):
 			item = dict(doc)
 			item["pre_rerank_rank"] = idx
 			item["rerank_score"] = score
-			if low_ce_confidence:
-				hybrid_prior = float(doc.get("hybrid_score") or doc.get("score") or (1.0 / idx))
-				item["score"] = hybrid_prior + (score * 1e-4)
-			else:
-				item["score"] = score
+			item["score"] = score
 			reranked.append(item)
 
-		reranked.sort(key=lambda x: x["score"], reverse=True)
+		reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
 		return reranked[:top_k]

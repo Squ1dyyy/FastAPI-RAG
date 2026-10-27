@@ -45,7 +45,7 @@ class Config(BaseSettings):
 	bm25_b: float = 0.75
 	use_bm25s_backend: bool = True
 
-	reranker_model_name: str = "cross-encoder/ms-marco-TinyBERT-L-2-v2"
+	reranker_model_name: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 	reranker_batch_size: int = 32
 	use_reranker: bool = True
 	small_to_big: bool = True
