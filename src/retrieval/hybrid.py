@@ -41,7 +41,6 @@ class HybridRetriever(BaseRetriever):
 		top_k: int,
 	) -> List[Dict[str, Any]]:
 		"""Fuse results using Reciprocal Rank Fusion (RRF)."""
-		# Key documents by unique text or id
 		doc_store: Dict[str, Dict[str, Any]] = {}
 		rrf_scores: Dict[str, float] = defaultdict(float)
 		dense_ranks: Dict[str, int] = {}
@@ -132,7 +131,6 @@ class HybridRetriever(BaseRetriever):
 
 	def retrieve(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
 		"""Retrieve and fuse candidate documents from both retrievers."""
-		# Retrieve a larger candidate pool for fusion
 		candidate_k = max(top_k * 2, 10)
 
 		dense_candidates = self.dense_retriever.retrieve(query, top_k=candidate_k)

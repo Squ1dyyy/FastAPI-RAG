@@ -35,7 +35,6 @@ def create_engine_and_session(
 	return engine, session_factory
 
 
-# Default application engine and session factory
 engine, async_session_factory = create_engine_and_session()
 
 

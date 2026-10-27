@@ -37,7 +37,6 @@ class BM25Retriever(BaseRetriever):
 		self.corpus: List[Dict[str, Any]] = []
 		self._bm25s_model = None
 
-		# Inverted index fallback structures
 		self.doc_lengths: List[int] = []
 		self.avg_doc_len: float = 0.0
 		self.doc_count: int = 0
@@ -52,12 +51,10 @@ class BM25Retriever(BaseRetriever):
 		for tok in raw_tokens:
 			low = tok.lower()
 			tokens.append(low)
-			# Split snake_case (e.g. status_code -> status, code)
 			if "_" in low:
 				parts = [p for p in low.split("_") if p]
 				if len(parts) > 1:
 					tokens.extend(parts)
-			# Split CamelCase (e.g. HTTPException -> http, exception)
 			camel_parts = re.findall(r"[A-Z]+(?=[A-Z][a-z]|\b)|[A-Z]?[a-z]+|[0-9]+", tok)
 			if len(camel_parts) > 1:
 				tokens.extend(p.lower() for p in camel_parts if p)
@@ -83,7 +80,6 @@ class BM25Retriever(BaseRetriever):
 		doc_freqs: Dict[str, int] = Counter()
 
 		for doc_idx, doc in enumerate(corpus):
-			# Combine title/breadcrumb/section_title with text for richer lexical matching
 			parts = [
 				str(doc.get("section_title", "")),
 				str(doc.get("anchor", "")),
@@ -143,7 +139,6 @@ class BM25Retriever(BaseRetriever):
 			if results:
 				return results
 
-		# Inverted index fast traversal fallback
 		scores_map: Dict[int, float] = defaultdict(float)
 		for token in tokens:
 			if token not in self.inverted_index:
@@ -172,5 +167,4 @@ class BM25Retriever(BaseRetriever):
 		return results
 
 
-# Alias for compatibility
 FastBM25Retriever = BM25Retriever

@@ -11,11 +11,10 @@ class DummyEmbedder(BaseEmbedder):
 		return [self.embed_query(t) for t in texts]
 
 	def embed_query(self, text: str) -> List[float]:
-		# Dummy 3-dimensional vector based on word presence
 		v1 = 1.0 if "fastapi" in text.lower() else 0.0
 		v2 = 1.0 if "route" in text.lower() or "router" in text.lower() else 0.0
 		v3 = 1.0 if "response" in text.lower() else 0.0
-		norm = (v1*v1 + v2*v2 + v3*v3) ** 0.5
+		norm = (v1 * v1 + v2 * v2 + v3 * v3) ** 0.5
 		if norm == 0:
 			return [0.33, 0.33, 0.33]
 		return [v1 / norm, v2 / norm, v3 / norm]

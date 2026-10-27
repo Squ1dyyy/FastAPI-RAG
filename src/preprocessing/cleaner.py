@@ -149,12 +149,9 @@ class FastAPIHTMLParser:
 		clone = BS(str(article), "html.parser")
 		root = clone.find("article") or clone
 
-		# 1. Remove permanent link symbols (¶)
 		for headerlink in root.find_all("a", class_="headerlink"):
 			headerlink.decompose()
 
-		# 2. Replace collapsible raw source code (<details class="mkdocstrings-source">)
-		# with its concise summary ("Source code in fastapi/...") to avoid duplicating docstrings
 		for details in root.find_all("details", class_="mkdocstrings-source"):
 			summary = details.find("summary")
 			summary_text = self._normalize_whitespace(summary.get_text(" ", strip=True)) if summary else ""
@@ -162,12 +159,9 @@ class FastAPIHTMLParser:
 			replacement.string = f"[{summary_text}]" if summary_text else ""
 			details.replace_with(replacement)
 
-		# 3. Remove line number spans inside code blocks
 		for linenos in root.find_all("span", class_="linenos"):
 			linenos.decompose()
 
-		# 4. Format parameter tables cleanly as structured bullet lines
-		# and place them before docstring subheadings (e.g. h4 Example) so they stay with the parent class/function
 		for table in root.find_all("table"):
 			rows_text = []
 			for tr in table.find_all("tr"):
@@ -267,7 +261,6 @@ class FastAPIHTMLParser:
 				if not isinstance(child, Tag):
 					continue
 
-				# Check if this element is a section heading
 				if child.name in self.HEADING_TAGS:
 					heading_id = child.get("id", "").strip()
 					heading_text = self._normalize_whitespace(child.get_text(" ", strip=True))
@@ -298,7 +291,6 @@ class FastAPIHTMLParser:
 						current_section["lines"].append(f"### {heading_text}")
 					continue
 
-				# Handle signature block
 				classes = child.get("class", [])
 				if "doc-signature" in classes:
 					sig_text = child.get_text().strip()
@@ -307,16 +299,13 @@ class FastAPIHTMLParser:
 						current_section["lines"].append(f"```python\n{sig_text}\n```")
 					continue
 
-				# Handle code highlight block
 				if "highlight" in classes:
 					code_text = child.get_text().strip()
 					if code_text:
 						current_section["lines"].append(f"```python\n{code_text}\n```")
 					continue
 
-				# Leaf block elements
 				if child.name in {"p", "li", "pre"}:
-					# If a <p> or <li> does not contain nested headings, extract its text
 					if not child.find(list(self.HEADING_TAGS)):
 						blk_text = self._normalize_whitespace(child.get_text(" ", strip=True))
 						if blk_text:
@@ -324,13 +313,11 @@ class FastAPIHTMLParser:
 							current_section["lines"].append(f"{prefix}{blk_text}")
 						continue
 
-				# Recurse into containers (divs, articles, ul, ol, doc-contents, doc-children)
 				_walk_dom(child)
 
 		_walk_dom(cleaned_root)
 		_flush_current()
 
-		# Convert sections into chunks (splitting oversized sections while preserving context header)
 		chunks: List[Dict[str, Any]] = []
 		for sec in sections:
 			header_prefix = f"[{sec['breadcrumb']}]\n"

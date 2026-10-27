@@ -18,14 +18,12 @@ class QueryLog(Base, TimestampMixin):
 
 	retriever_used: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
-	# JSON / JSONB for candidate chunk IDs, ranks, and fusion scores
 	retrieved_chunks: Mapped[Dict[str, Any]] = mapped_column(
 		JSON().with_variant(JSONB(), "postgresql"),
 		nullable=False,
 		default=dict,
 	)
 
-	# JSON / JSONB for evaluation metrics (faithfulness, relevance, latency)
 	evaluation_metrics: Mapped[Dict[str, Any]] = mapped_column(
 		JSON().with_variant(JSONB(), "postgresql"),
 		nullable=False,

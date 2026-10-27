@@ -46,30 +46,25 @@ class DocumentChunk(Base, TimestampMixin):
 	)
 	chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
 
-	# Structural fields from `md-sidebar__scrollwrap` & headings
 	section_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
 	anchor: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
 	section_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 	breadcrumb: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 	symbol_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-	# Clean section text content
 	text: Mapped[str] = mapped_column(Text, nullable=False)
 
-	# Precomputed dense embedding vector (e.g. 384-d float list from multilingual-e5-small)
 	embedding: Mapped[Optional[List[float]]] = mapped_column(
 		JSON().with_variant(JSONB(), "postgresql"),
 		nullable=True,
 	)
 
-	# JSON / JSONB metadata (signature, sub_chunk_index, start/end offsets, etc.)
 	metadata_json: Mapped[Dict[str, Any]] = mapped_column(
 		JSON().with_variant(JSONB(), "postgresql"),
 		nullable=False,
 		default=dict,
 	)
 
-	# Relation to parent document
 	document: Mapped["Document"] = relationship(
 		"Document",
 		back_populates="chunks",

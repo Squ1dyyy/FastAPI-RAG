@@ -89,7 +89,6 @@ class Grabber:
 			for path, text in sources:
 				full_url = urljoin(self.reference_url, path)
 
-				# Convert relative path to filename (e.g. './fastapi/' -> 'fastapi.html')
 				file_stem = path.strip("./").strip("/").replace("/", "_") or "index"
 				cur_file = self.path_to_data / f"{file_stem}.html"
 
@@ -108,7 +107,6 @@ class Grabber:
 				}
 
 
-# Backwards compatibility alias
 Scraper = Grabber
 
 
