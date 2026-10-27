@@ -1,6 +1,6 @@
 """Single-page HTML/JS interface for the Multi-Language FastAPI Hybrid RAG Chat."""
 
-CHAT_HTML = """<!DOCTYPE html>
+CHAT_HTML = r"""<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -302,7 +302,7 @@ body {
 			<option value="zh-hant">zh-hant - 繁體中文</option>
 		</select>
 	</div>
-	<button class="new-chat-btn" onclick="createNewSession()">+ Новая сессия</button>
+	<button type="button" class="new-chat-btn" onclick="createNewSession()">+ Новая сессия</button>
 	<div class="sessions-list" id="sessionsList"></div>
 	<div class="status-box" id="statusBox">Загрузка статуса...</div>
 </div>
@@ -312,7 +312,7 @@ body {
 		<div id="sessionBadge" style="font-size: 12px; color: rgb(148, 163, 184);"></div>
 	</div>
 	<div class="messages" id="messagesContainer"></div>
-	<form class="input-bar" onsubmit="sendMessage(event)">
+	<form class="input-bar" id="chatForm">
 		<input type="text" id="queryInput" placeholder="Задайте вопрос по документации FastAPI..." autocomplete="off" required />
 		<button type="submit" id="sendBtn">Отправить</button>
 	</form>
@@ -476,6 +476,7 @@ function renderSessionItem(s, container) {
 	leftWrap.appendChild(langPill);
 
 	const delBtn = document.createElement('button');
+	delBtn.type = 'button';
 	delBtn.className = 'delete-btn';
 	delBtn.textContent = '✕';
 	delBtn.onclick = (ev) => { ev.stopPropagation(); deleteSession(s.id); };
@@ -593,10 +594,11 @@ function appendMessageElement(role, content, sources = [], metrics = {}) {
 	}
 	container.appendChild(div);
 	container.scrollTop = container.scrollHeight;
+	return div;
 }
 
 async function sendMessage(e) {
-	e.preventDefault();
+	if (e) e.preventDefault();
 	const input = document.getElementById('queryInput');
 	const btn = document.getElementById('sendBtn');
 	const query = input.value.trim();
@@ -605,6 +607,7 @@ async function sendMessage(e) {
 	input.value = '';
 	btn.disabled = true;
 	appendMessageElement('user', query);
+	const pendingNode = appendMessageElement('assistant', 'Ищу в документации и генерирую ответ (`gemini-3.1-flash-lite`)...');
 
 	try {
 		const res = await fetch('/api/chat', {
@@ -619,6 +622,9 @@ async function sendMessage(e) {
 			})
 		});
 		const data = await res.json();
+		if (pendingNode && pendingNode.parentNode) {
+			pendingNode.parentNode.removeChild(pendingNode);
+		}
 		activeSessionId = data.session_id;
 		appendMessageElement('assistant', data.answer, data.sources, {
 			...data.metrics,
@@ -626,6 +632,9 @@ async function sendMessage(e) {
 		});
 		await loadSessionsWithoutSelect();
 	} catch (err) {
+		if (pendingNode && pendingNode.parentNode) {
+			pendingNode.parentNode.removeChild(pendingNode);
+		}
 		appendMessageElement('assistant', 'Ошибка при получении ответа от сервера.');
 	} finally {
 		btn.disabled = false;
@@ -633,6 +642,7 @@ async function sendMessage(e) {
 	}
 }
 
+document.getElementById('chatForm').addEventListener('submit', sendMessage);
 loadStatus();
 loadSessions();
 </script>

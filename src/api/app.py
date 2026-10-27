@@ -98,6 +98,11 @@ def create_app(
 		"""Serve the single-page RAG chat interface."""
 		return HTMLResponse(content=CHAT_HTML)
 
+	@app.get("/.well-known/appspecific/com.chrome.devtools.json")
+	async def chrome_devtools_manifest() -> dict:
+		"""Return empty JSON to suppress Chrome DevTools 404 log noise."""
+		return {}
+
 	@app.get("/api/health")
 	async def health(
 		rag_pipeline: HybridRAGPipeline = Depends(get_pipeline),
