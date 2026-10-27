@@ -1,7 +1,7 @@
 """Single-page HTML/JS interface for the Multi-Language FastAPI Hybrid RAG Chat."""
 
 CHAT_HTML = r"""<!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -285,9 +285,9 @@ body {
 <div class="sidebar">
 	<div class="brand">FastAPI Hybrid RAG</div>
 	<div class="lang-box">
-		<label class="lang-label" for="languageSelect">Язык документации:</label>
+		<label class="lang-label" for="languageSelect">Documentation Language:</label>
 		<select id="languageSelect" class="lang-select" onchange="onLanguageChange()">
-			<option value="en">en - English</option>
+			<option value="en" selected>en - English</option>
 			<option value="de">de - Deutsch</option>
 			<option value="es">es - español</option>
 			<option value="fr">fr - français</option>
@@ -295,26 +295,26 @@ body {
 			<option value="ja">ja - 日本語</option>
 			<option value="ko">ko - 한국어</option>
 			<option value="pt">pt - português</option>
-			<option value="ru" selected>ru - русский язык</option>
+			<option value="ru">ru - русский язык</option>
 			<option value="tr">tr - Türkçe</option>
 			<option value="uk">uk - українська мова</option>
 			<option value="zh">zh - 简体中文</option>
 			<option value="zh-hant">zh-hant - 繁體中文</option>
 		</select>
 	</div>
-	<button type="button" class="new-chat-btn" onclick="createNewSession()">+ Новая сессия</button>
+	<button type="button" class="new-chat-btn" onclick="createNewSession()">+ New Session</button>
 	<div class="sessions-list" id="sessionsList"></div>
-	<div class="status-box" id="statusBox">Загрузка статуса...</div>
+	<div class="status-box" id="statusBox">Loading status...</div>
 </div>
 <div class="main">
 	<div class="chat-header">
-		<div id="currentSessionTitle">Выберите или создайте сессию</div>
+		<div id="currentSessionTitle">Select or create a session</div>
 		<div id="sessionBadge" style="font-size: 12px; color: rgb(148, 163, 184);"></div>
 	</div>
 	<div class="messages" id="messagesContainer"></div>
 	<form class="input-bar" id="chatForm">
-		<input type="text" id="queryInput" placeholder="Задайте вопрос по документации FastAPI..." autocomplete="off" required />
-		<button type="submit" id="sendBtn">Отправить</button>
+		<input type="text" id="queryInput" placeholder="Ask a question about FastAPI documentation..." autocomplete="off" required />
+		<button type="submit" id="sendBtn">Send</button>
 	</form>
 </div>
 <script>
@@ -322,7 +322,7 @@ let activeSessionId = null;
 
 function getSelectedLanguage() {
 	const sel = document.getElementById('languageSelect');
-	return sel ? sel.value : 'ru';
+	return sel ? sel.value : 'en';
 }
 
 function onLanguageChange() {
@@ -455,7 +455,7 @@ async function loadStatus() {
 			`LLM: <b>${data.llm_model}</b><br>` +
 			`Dense: ${data.embedding_model}`;
 	} catch (e) {
-		document.getElementById('statusBox').innerText = 'Ошибка подключения';
+		document.getElementById('statusBox').innerText = 'Connection error';
 	}
 }
 
@@ -471,7 +471,7 @@ function renderSessionItem(s, container) {
 	titleSpan.textContent = s.title || 'New Chat';
 	const langPill = document.createElement('span');
 	langPill.className = 'lang-pill';
-	langPill.textContent = s.language || 'ru';
+	langPill.textContent = s.language || 'en';
 	leftWrap.appendChild(titleSpan);
 	leftWrap.appendChild(langPill);
 
@@ -531,7 +531,7 @@ async function selectSession(sessionId) {
 	}
 	document.getElementById('currentSessionTitle').textContent = detail.title;
 	document.getElementById('sessionBadge').textContent =
-		`Session: ${detail.id.slice(0, 8)} · Lang: ${(detail.language || 'ru').toUpperCase()}`;
+		`Session: ${detail.id.slice(0, 8)} · Lang: ${(detail.language || 'en').toUpperCase()}`;
 	const container = document.getElementById('messagesContainer');
 	container.innerHTML = '';
 	detail.messages.forEach(m => appendMessageElement(m.role, m.content, m.sources, m.metrics));
@@ -568,7 +568,7 @@ function appendMessageElement(role, content, sources = [], metrics = {}) {
 		const header = document.createElement('div');
 		header.className = 'sources-title';
 		const lat = metrics && metrics.latency_seconds ? ` · ${metrics.latency_seconds}s` : '';
-		header.textContent = `Источники FastAPI Reference${lat}`;
+		header.textContent = `FastAPI Reference Sources${lat}`;
 		srcBox.appendChild(header);
 
 		const badgeRow = document.createElement('div');
@@ -607,7 +607,7 @@ async function sendMessage(e) {
 	input.value = '';
 	btn.disabled = true;
 	appendMessageElement('user', query);
-	const pendingNode = appendMessageElement('assistant', 'Ищу в документации и генерирую ответ (`gemini-3.1-flash-lite`)...');
+	const pendingNode = appendMessageElement('assistant', 'Searching documentation and generating answer (`gemini-3.1-flash-lite`)...');
 
 	try {
 		const res = await fetch('/api/chat', {
@@ -635,7 +635,7 @@ async function sendMessage(e) {
 		if (pendingNode && pendingNode.parentNode) {
 			pendingNode.parentNode.removeChild(pendingNode);
 		}
-		appendMessageElement('assistant', 'Ошибка при получении ответа от сервера.');
+		appendMessageElement('assistant', 'Error receiving response from server.');
 	} finally {
 		btn.disabled = false;
 		input.focus();

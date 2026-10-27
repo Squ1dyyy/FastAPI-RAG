@@ -135,7 +135,7 @@ class LLMGenerator(BaseGenerator):
 	def format_extractive_fallback(query: str, context: List[Dict[str, Any]]) -> str:
 		"""Build a clean, readable documentation answer from top reranked chunks when LLM is unavailable."""
 		if not context:
-			return f"По запросу «{query}» ничего не найдено в документации FastAPI."
+			return f"No relevant FastAPI reference sections found for: '{query}'."
 
 		sections: List[str] = []
 		for idx, chunk in enumerate(context[:3], start=1):
@@ -155,7 +155,7 @@ class LLMGenerator(BaseGenerator):
 			body = LLMGenerator.clean_chunk_text(chunk.get("text", ""))
 			header = f"### {idx}. {breadcrumb}"
 			if sec_url:
-				header += f"\n[Открыть в документации]({sec_url})"
+				header += f"\n[Open in documentation]({sec_url})"
 			sections.append(f"{header}\n\n{body}")
 
 		return "\n\n---\n\n".join(sections)
