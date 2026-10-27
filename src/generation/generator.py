@@ -177,8 +177,11 @@ class LLMGenerator(BaseGenerator):
 		user_prompt = (
 			f"FastAPI Reference Context:\n{formatted_context}{lang_hint}\n\n"
 			f"User Question:\n{query}\n\n"
-			"Provide a clear, well-structured Markdown answer with code examples based on the context above, "
-			"and cite the relevant documentation URLs."
+			"Instructions:\n"
+			"1. Use ONLY the information explicitly present in the FastAPI Reference Context above.\n"
+			"2. Do NOT use any prior or external knowledge outside the provided context.\n"
+			"3. If the context does not contain the answer, clearly state that the retrieved documentation does not cover this.\n"
+			"4. Format the answer in clean Markdown and cite the exact documentation URLs from the context."
 		)
 		messages: List[Dict[str, str]] = [
 			{"role": "system", "content": self.system_prompt}
