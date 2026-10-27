@@ -98,11 +98,6 @@ def create_app(
 		"""Serve the single-page RAG chat interface."""
 		return HTMLResponse(content=CHAT_HTML)
 
-	@app.get("/.well-known/appspecific/com.chrome.devtools.json")
-	async def chrome_devtools_manifest() -> dict:
-		"""Return empty JSON to suppress Chrome DevTools 404 log noise."""
-		return {}
-
 	@app.get("/api/health")
 	async def health(
 		rag_pipeline: HybridRAGPipeline = Depends(get_pipeline),
@@ -218,7 +213,7 @@ def create_app(
 		db: AsyncSession = Depends(get_db),
 		rag_pipeline: HybridRAGPipeline = Depends(get_pipeline),
 	) -> ChatResponse:
-		"""Run Hybrid RAG search + reranking + Gemini LLM generation inside a persistent chat session."""
+		"""Run Hybrid RAG search + reranking + LLM generation inside a persistent chat session."""
 		repo = ChatSessionRepository(db)
 		chat_session = await repo.get_or_create_session(
 			session_id=payload.session_id,

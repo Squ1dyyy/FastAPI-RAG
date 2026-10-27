@@ -1,0 +1,2842 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="tr">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="FastAPI framework, high performance, easy to learn, fast to code, ready for production" name="description"/>
+<link href="https://fastapi.tiangolo.com/tr/reference/dependencies/" rel="canonical"/>
+<link href="../exceptions/" rel="prev"/>
+<link href="../apirouter/" rel="next"/>
+<link href="/" hreflang="tr" rel="alternate"/>
+<link href="/de/" hreflang="tr" rel="alternate"/>
+<link href="/es/" hreflang="tr" rel="alternate"/>
+<link href="/fr/" hreflang="tr" rel="alternate"/>
+<link href="/hi/" hreflang="tr" rel="alternate"/>
+<link href="/ja/" hreflang="tr" rel="alternate"/>
+<link href="/ko/" hreflang="tr" rel="alternate"/>
+<link href="/pt/" hreflang="tr" rel="alternate"/>
+<link href="/ru/" hreflang="tr" rel="alternate"/>
+<link href="/tr/" hreflang="tr" rel="alternate"/>
+<link href="/uk/" hreflang="tr" rel="alternate"/>
+<link href="/zh/" hreflang="tr" rel="alternate"/>
+<link href="/zh-hant/" hreflang="tr" rel="alternate"/>
+<link href="/img/favicon.png" rel="icon"/>
+<meta content="zensical-0.0.65" name="generator"/>
+<title>Dependencies - Depends() and Security() - FastAPI</title>
+<link href="../../assets/stylesheets/classic/main.1470d0a1.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/classic/palette.c7ab7c71.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="/css/termynal.css" rel="stylesheet"/>
+<link href="/css/custom.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label aria-label="Navigasyon" class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#dependencies-depends-and-security">
+          Ana içeriğe geç
+        </a>
+</div>
+<div data-md-component="announce">
+<aside class="md-banner">
+<div class="md-banner__inner md-grid md-typeset">
+<div class="announce-wrapper">
+<div id="announce-left">
+<div class="item">
+<a class="announce-link" href="https://fastapicloud.com" target="_blank">
+<span class="twemoji">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 19c0 .34.04.67.09 1H6.5c-1.5 0-2.81-.5-3.89-1.57C1.54 17.38 1 16.09 1 14.58q0-1.95 1.17-3.48C3.34 9.57 4 9.43 5.25 9.15c.42-1.53 1.25-2.77 2.5-3.72S10.42 4 12 4c1.95 0 3.6.68 4.96 2.04S19 9.05 19 11c1.15.13 2.1.63 2.86 1.5.51.57.84 1.21 1 1.92A5.9 5.9 0 0 0 19 13c-3.31 0-6 2.69-6 6m3-1h2v4h2v-4h2l-3-3z"></path></svg>
+</span> Deploy on <strong>FastAPI Cloud</strong> 🚀
+      </a>
+</div>
+<div class="item">
+<a class="announce-link" href="https://fastapiconf.com" target="_blank">
+<span class="twemoji">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 19H5V8h14m-3-7v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14a2 2 0 0 0 2 2h14c1.11 0 2-.89 2-2V5a2 2 0 0 0-2-2h-1V1m-7.12 11H7.27l2.92 2.11-1.11 3.45L12 15.43l2.92 2.13-1.12-3.44L16.72 12h-3.6L12 8.56z"></path></svg>
+</span> <strong>FastAPI Conf '26</strong> — Oct 28, 2026, Amsterdam 🎤
+      </a>
+</div>
+<div class="item">
+<a class="announce-link" href="https://x.com/fastapi" target="_blank">
+<span class="twemoji">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path d="M357.2 48h70.6L273.6 224.2 455 464H313L201.7 318.6 74.5 464H3.8l164.9-188.5L-5.2 48h145.6l100.5 132.9zm-24.8 373.8h39.1L119.1 88h-42z" fill="currentColor"></path></svg>
+</span> Follow <strong>@fastapi</strong> on <strong>X (Twitter)</strong> to stay updated
+      </a>
+</div>
+<div class="item">
+<a class="announce-link" href="https://www.linkedin.com/company/fastapi" target="_blank">
+<span class="twemoji linkedin">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3M135.4 416H69V202.2h66.5V416zM102.2 96a38.5 38.5 0 1 1 0 77 38.5 38.5 0 1 1 0-77m282.1 320h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9z" fill="currentColor"></path></svg>
+</span> Follow <strong>FastAPI</strong> on <strong>LinkedIn</strong> to stay updated
+      </a>
+</div>
+<div class="item">
+<a class="announce-link" href="https://fastapi.tiangolo.com/newsletter/">
+<span class="twemoji">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m20 8-8 5-8-5V6l8 5 8-5m0-2H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2"></path></svg>
+</span> Subscribe to the <strong>FastAPI and friends</strong> newsletter 🎉
+      </a>
+</div>
+</div>
+<div id="announce-right" style="position: relative;">
+<div class="item">
+<a href="https://blockbee.io?ref=fastapi" style="display: block; position: relative;" target="_blank" title="BlockBee Cryptocurrency Payment Gateway">
+<span class="sponsor-badge">sponsor</span>
+<img alt="BlockBee Cryptocurrency Payment Gateway" class="sponsor-image" src="/img/sponsors/blockbee-banner.png"/>
+</a>
+</div>
+<div class="item">
+<a href="https://www.propelauth.com/?utm_source=fastapi&amp;utm_campaign=1223&amp;utm_medium=topbanner" style="display: block; position: relative;" target="_blank" title="Auth, user management and more for your B2B product">
+<span class="sponsor-badge">sponsor</span>
+<img alt="Auth, user management and more for your B2B product" class="sponsor-image" src="/img/sponsors/propelauth-banner.png"/>
+</a>
+</div>
+<div class="item">
+<a href="https://www.coderabbit.ai/?utm_source=fastapi&amp;utm_medium=banner&amp;utm_campaign=fastapi" style="display: block; position: relative;" target="_blank" title="Cut Code Review Time &amp; Bugs in Half with CodeRabbit">
+<span class="sponsor-badge">sponsor</span>
+<img alt="Cut Code Review Time &amp; Bugs in Half with CodeRabbit" class="sponsor-image" src="/img/sponsors/coderabbit-banner.png"/>
+</a>
+</div>
+<div class="item">
+<a href="https://subtotal.com/?utm_source=fastapi&amp;utm_medium=sponsorship&amp;utm_campaign=open-source" style="display: block; position: relative;" target="_blank" title="Making Retail Purchases Actionable for Brands and Developers">
+<span class="sponsor-badge">sponsor</span>
+<img alt="Making Retail Purchases Actionable for Brands and Developers" class="sponsor-image" src="/img/sponsors/subtotal-banner.svg"/>
+</a>
+</div>
+<div class="item">
+<a href="https://docs.railway.com/guides/fastapi?utm_medium=integration&amp;utm_source=docs&amp;utm_campaign=fastapi" style="display: block; position: relative;" target="_blank" title="Deploy enterprise applications at startup speed">
+<span class="sponsor-badge">sponsor</span>
+<img alt="Deploy enterprise applications at startup speed" class="sponsor-image" src="/img/sponsors/railway-banner.png"/>
+</a>
+</div>
+<div class="item">
+<a href="https://serpapi.com/?utm_source=fastapi_website" style="display: block; position: relative;" target="_blank" title="SerpApi: Web Search API">
+<span class="sponsor-badge">sponsor</span>
+<img alt="SerpApi: Web Search API" class="sponsor-image" src="/img/sponsors/serpapi-banner.png"/>
+</a>
+</div>
+<div class="item">
+<a href="https://www.greptile.com/?utm_source=fastapi&amp;utm_medium=sponsorship&amp;utm_campaign=fastapi_sponsor_page" style="display: block; position: relative;" target="_blank" title="Greptile: The AI Code Reviewer">
+<span class="sponsor-badge">sponsor</span>
+<img alt="Greptile: The AI Code Reviewer" class="sponsor-image" src="/img/sponsors/greptile-banner.png"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+<nav aria-label="Başlık" class="md-header__inner md-grid">
+<a aria-label="FastAPI" class="md-header__button md-logo" data-md-component="logo" href="../.." title="FastAPI">
+<img alt="FastAPI" src="/img/icon-white.svg"/>
+</a>
+<label aria-label="Navigasyon" class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            FastAPI
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Dependencies - Depends() and Security()
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 2C5.13 2 2 5.13 2 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7M6 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H6zm13-8h-2l-3.2 9h1.9l.7-2h3.2l.7 2h1.9zm-2.15 5.65L18 15l1.15 3.65z"></path></svg>
+</label>
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="amber" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="teal" data-md-color-scheme="default" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_2" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"></path></svg>
+</label>
+<input aria-label="Switch to system preference" class="md-option" data-md-color-accent="amber" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="teal" data-md-color-scheme="slate" id="__palette_2" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to system preference">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<div class="md-header__option">
+<div class="md-select">
+<button aria-label="Dil seç" class="md-header__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"></path></svg>
+</button>
+<div class="md-select__inner">
+<ul class="md-select__list">
+<li class="md-select__item">
+<a class="md-select__link" href="/" hreflang="">
+              en - English
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/de/" hreflang="">
+              de - Deutsch
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/es/" hreflang="">
+              es - español
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/fr/" hreflang="">
+              fr - français
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/hi/" hreflang="">
+              hi - हिन्दी
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/ja/" hreflang="">
+              ja - 日本語
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/ko/" hreflang="">
+              ko - 한국어
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/pt/" hreflang="">
+              pt - português
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/ru/" hreflang="">
+              ru - русский язык
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/tr/" hreflang="">
+              tr - Türkçe
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/uk/" hreflang="">
+              uk - українська мова
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/zh/" hreflang="">
+              zh - 简体中文
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="/zh-hant/" hreflang="">
+              zh-hant - 繁體中文
+            </a>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<label aria-label="Ara" class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div aria-label="Ara" class="md-search" data-md-component="search" role="dialog">
+<button class="md-search__button" type="button">
+    Ara
+  </button>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/fastapi/fastapi" title="Depoya git">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"></path></svg>
+</div>
+<div class="md-source__repository">
+    fastapi/fastapi
+  </div>
+</a>
+</div>
+</nav>
+<nav aria-label="Sekmeler" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../..">
+        
+  
+  FastAPI
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../features/">
+        
+  
+  Özellikler
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../learn/">
+          
+  
+  Öğren
+
+        </a>
+</li>
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="../">
+          
+  
+  Reference
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../resources/">
+          
+  
+  Kaynaklar
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../about/">
+          
+  
+  Hakkında
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../release-notes/">
+        
+  
+  Release Notes
+
+      </a>
+</li>
+</ul>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigasyon" class="md-nav md-nav--primary md-nav--lifted" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="FastAPI" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="FastAPI">
+<img alt="FastAPI" src="/img/icon-white.svg"/>
+</a>
+    FastAPI
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/fastapi/fastapi" title="Depoya git">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"></path></svg>
+</div>
+<div class="md-source__repository">
+    fastapi/fastapi
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../..">
+<span class="md-ellipsis">
+    
+  
+  FastAPI
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../features/">
+<span class="md-ellipsis">
+    
+  
+  Özellikler
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../learn/">
+<span class="md-ellipsis">
+    
+  
+  Öğren
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../python-types/">
+<span class="md-ellipsis">
+    
+  
+  Python Tiplerine Giriş
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../async/">
+<span class="md-ellipsis">
+    
+  
+  Eşzamanlılık ve async / await
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_4" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../tutorial/">
+<span class="md-ellipsis">
+    
+  
+  Eğitim - Kullanıcı Rehberi
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_4">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/first-steps/">
+<span class="md-ellipsis">
+    
+  
+  İlk Adımlar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/path-params/">
+<span class="md-ellipsis">
+    
+  
+  Path Parametreleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/query-params/">
+<span class="md-ellipsis">
+    
+  
+  Query Parametreleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/body/">
+<span class="md-ellipsis">
+    
+  
+  Request Body
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/query-params-str-validations/">
+<span class="md-ellipsis">
+    
+  
+  Query Parametreleri ve String Doğrulamaları
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/path-params-numeric-validations/">
+<span class="md-ellipsis">
+    
+  
+  Path Parametreleri ve Sayısal Doğrulamalar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/query-param-models/">
+<span class="md-ellipsis">
+    
+  
+  Query Parameter Modelleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/body-multiple-params/">
+<span class="md-ellipsis">
+    
+  
+  Body - Birden Fazla Parametre
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/body-fields/">
+<span class="md-ellipsis">
+    
+  
+  Body - Alanlar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/body-nested-models/">
+<span class="md-ellipsis">
+    
+  
+  Body - İç İçe Modeller
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/schema-extra-example/">
+<span class="md-ellipsis">
+    
+  
+  Request Örnek Verilerini Tanımlama
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/extra-data-types/">
+<span class="md-ellipsis">
+    
+  
+  Ek Veri Tipleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/cookie-params/">
+<span class="md-ellipsis">
+    
+  
+  Cookie (Çerez) Parametreleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/header-params/">
+<span class="md-ellipsis">
+    
+  
+  Header Parametreleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/cookie-param-models/">
+<span class="md-ellipsis">
+    
+  
+  Cookie Parametre Modelleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/header-param-models/">
+<span class="md-ellipsis">
+    
+  
+  Header Parametre Modelleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/response-model/">
+<span class="md-ellipsis">
+    
+  
+  Response Model - Dönüş Tipi
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/extra-models/">
+<span class="md-ellipsis">
+    
+  
+  Ek Modeller
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/response-status-code/">
+<span class="md-ellipsis">
+    
+  
+  Response Status Code'u
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/request-forms/">
+<span class="md-ellipsis">
+    
+  
+  Form Verisi
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/request-form-models/">
+<span class="md-ellipsis">
+    
+  
+  Form Model'leri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/request-files/">
+<span class="md-ellipsis">
+    
+  
+  Request Dosyaları
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/request-forms-and-files/">
+<span class="md-ellipsis">
+    
+  
+  Request Formları ve Dosyalar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/handling-errors/">
+<span class="md-ellipsis">
+    
+  
+  Hataları Yönetme
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/path-operation-configuration/">
+<span class="md-ellipsis">
+    
+  
+  Path Operation Yapılandırması
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/encoder/">
+<span class="md-ellipsis">
+    
+  
+  JSON Uyumlu Encoder
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/body-updates/">
+<span class="md-ellipsis">
+    
+  
+  Body - Güncellemeler
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_4_29" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../tutorial/dependencies/">
+<span class="md-ellipsis">
+    
+  
+  Bağımlılıklar
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3_4_29" id="__nav_3_4_29_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_4_29_label" class="md-nav" data-md-level="3">
+<label class="md-nav__title" for="__nav_3_4_29">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/dependencies/classes-as-dependencies/">
+<span class="md-ellipsis">
+    
+  
+  Dependency Olarak Class'lar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/dependencies/sub-dependencies/">
+<span class="md-ellipsis">
+    
+  
+  Alt Bağımlılıklar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/dependencies/dependencies-in-path-operation-decorators/">
+<span class="md-ellipsis">
+    
+  
+  Path Operation Decorator'lerinde Dependency'ler
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/dependencies/global-dependencies/">
+<span class="md-ellipsis">
+    
+  
+  Global Dependencies
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/dependencies/dependencies-with-yield/">
+<span class="md-ellipsis">
+    
+  
+  yield ile Dependency'ler
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_4_30" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../tutorial/security/">
+<span class="md-ellipsis">
+    
+  
+  Güvenlik
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3_4_30" id="__nav_3_4_30_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_4_30_label" class="md-nav" data-md-level="3">
+<label class="md-nav__title" for="__nav_3_4_30">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/security/first-steps/">
+<span class="md-ellipsis">
+    
+  
+  Güvenlik - İlk Adımlar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/security/get-current-user/">
+<span class="md-ellipsis">
+    
+  
+  Mevcut Kullanıcıyı Alma
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/security/simple-oauth2/">
+<span class="md-ellipsis">
+    
+  
+  Password ve Bearer ile Basit OAuth2
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/security/oauth2-jwt/">
+<span class="md-ellipsis">
+    
+  
+  Password ile OAuth2 (ve hashing), JWT token'ları ile Bearer
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/middleware/">
+<span class="md-ellipsis">
+    
+  
+  Middleware
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/cors/">
+<span class="md-ellipsis">
+    
+  
+  CORS (Cross-Origin Resource Sharing)
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/sql-databases/">
+<span class="md-ellipsis">
+    
+  
+  SQL (İlişkisel) Veritabanları
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/bigger-applications/">
+<span class="md-ellipsis">
+    
+  
+  Daha Büyük Uygulamalar - Birden Fazla Dosya
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/stream-json-lines/">
+<span class="md-ellipsis">
+    
+  
+  JSON Lines Akışı
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/server-sent-events/">
+<span class="md-ellipsis">
+    
+  
+  Server-Sent Events (SSE)
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/background-tasks/">
+<span class="md-ellipsis">
+    
+  
+  Arka Plan Görevleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/metadata/">
+<span class="md-ellipsis">
+    
+  
+  Metadata ve Doküman URL'leri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/frontend/">
+<span class="md-ellipsis">
+    
+  
+  Frontend
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/static-files/">
+<span class="md-ellipsis">
+    
+  
+  Statik Dosyalar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/testing/">
+<span class="md-ellipsis">
+    
+  
+  Test Etme
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../tutorial/debugging/">
+<span class="md-ellipsis">
+    
+  
+  Debugging
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_5" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../advanced/">
+<span class="md-ellipsis">
+    
+  
+  Gelişmiş Kullanıcı Rehberi
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_5">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/stream-data/">
+<span class="md-ellipsis">
+    
+  
+  Veri Akışı
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/path-operation-advanced-configuration/">
+<span class="md-ellipsis">
+    
+  
+  Path Operation İleri Düzey Yapılandırma
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/additional-status-codes/">
+<span class="md-ellipsis">
+    
+  
+  Ek Status Code'ları
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/response-directly/">
+<span class="md-ellipsis">
+    
+  
+  Doğrudan Bir Response Döndürme
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/custom-response/">
+<span class="md-ellipsis">
+    
+  
+  Özel Response - HTML, Stream, File ve Diğerleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/additional-responses/">
+<span class="md-ellipsis">
+    
+  
+  OpenAPI'de Ek Response'lar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/response-cookies/">
+<span class="md-ellipsis">
+    
+  
+  Response Cookie'leri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/response-headers/">
+<span class="md-ellipsis">
+    
+  
+  Response Header'ları
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/response-change-status-code/">
+<span class="md-ellipsis">
+    
+  
+  Response - Status Code Değiştirme
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/advanced-dependencies/">
+<span class="md-ellipsis">
+    
+  
+  Gelişmiş Dependency'ler
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_5_12" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../advanced/security/">
+<span class="md-ellipsis">
+    
+  
+  Gelişmiş Güvenlik
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3_5_12" id="__nav_3_5_12_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_5_12_label" class="md-nav" data-md-level="3">
+<label class="md-nav__title" for="__nav_3_5_12">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/security/oauth2-scopes/">
+<span class="md-ellipsis">
+    
+  
+  OAuth2 scope'ları
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/security/http-basic-auth/">
+<span class="md-ellipsis">
+    
+  
+  HTTP Basic Auth
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/using-request-directly/">
+<span class="md-ellipsis">
+    
+  
+  Request'i Doğrudan Kullanmak
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/dataclasses/">
+<span class="md-ellipsis">
+    
+  
+  Dataclass Kullanımı
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/middleware/">
+<span class="md-ellipsis">
+    
+  
+  İleri Seviye Middleware
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/sub-applications/">
+<span class="md-ellipsis">
+    
+  
+  Alt Uygulamalar - Mount İşlemi
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/behind-a-proxy/">
+<span class="md-ellipsis">
+    
+  
+  Proxy Arkasında Çalıştırma
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/templates/">
+<span class="md-ellipsis">
+    
+  
+  Şablonlar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/websockets/">
+<span class="md-ellipsis">
+    
+  
+  WebSockets
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/events/">
+<span class="md-ellipsis">
+    
+  
+  Lifespan Olayları
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/opentelemetry/">
+<span class="md-ellipsis">
+    
+  
+  OpenTelemetry
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/testing-websockets/">
+<span class="md-ellipsis">
+    
+  
+  WebSockets'i Test Etmek
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/testing-events/">
+<span class="md-ellipsis">
+    
+  
+  Event'leri Test Etme: lifespan ve startup - shutdown
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/testing-dependencies/">
+<span class="md-ellipsis">
+    
+  
+  Override Kullanarak Dependency'leri Test Etme
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/async-tests/">
+<span class="md-ellipsis">
+    
+  
+  Async Testler
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/settings/">
+<span class="md-ellipsis">
+    
+  
+  Ayarlar ve Ortam Değişkenleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/openapi-callbacks/">
+<span class="md-ellipsis">
+    
+  
+  OpenAPI Callback'leri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/openapi-webhooks/">
+<span class="md-ellipsis">
+    
+  
+  OpenAPI Webhook'lar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/wsgi/">
+<span class="md-ellipsis">
+    
+  
+  WSGI'yi Dahil Etme - Flask, Django ve Diğerleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/generate-clients/">
+<span class="md-ellipsis">
+    
+  
+  SDK Üretme
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/advanced-python-types/">
+<span class="md-ellipsis">
+    
+  
+  Gelişmiş Python Tipleri
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/json-base64-bytes/">
+<span class="md-ellipsis">
+    
+  
+  JSON'da Bytes'i Base64 Olarak Kullanma
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../advanced/strict-content-type/">
+<span class="md-ellipsis">
+    
+  
+  Sıkı Content-Type Kontrolü
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../fastapi-cli/">
+<span class="md-ellipsis">
+    
+  
+  FastAPI CLI
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../editor-support/">
+<span class="md-ellipsis">
+    
+  
+  Editör Desteği
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_8" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../deployment/">
+<span class="md-ellipsis">
+    
+  
+  Dağıtım
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_8_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_8">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../deployment/versions/">
+<span class="md-ellipsis">
+    
+  
+  FastAPI Sürümleri Hakkında
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../deployment/fastapicloud/">
+<span class="md-ellipsis">
+    
+  
+  FastAPI Cloud
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../deployment/https/">
+<span class="md-ellipsis">
+    
+  
+  HTTPS Hakkında
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../deployment/manually/">
+<span class="md-ellipsis">
+    
+  
+  Bir Sunucuyu Manuel Olarak Çalıştırın
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../deployment/concepts/">
+<span class="md-ellipsis">
+    
+  
+  Deployment Kavramları
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../deployment/cloud/">
+<span class="md-ellipsis">
+    
+  
+  Bulut Sağlayıcılar Üzerinde FastAPI Yayınlama
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../deployment/server-workers/">
+<span class="md-ellipsis">
+    
+  
+  Server Workers - Worker'larla Uvicorn
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../deployment/docker/">
+<span class="md-ellipsis">
+    
+  
+  Container'larda FastAPI - Docker
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_3_9" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../how-to/">
+<span class="md-ellipsis">
+    
+  
+  Nasıl Yapılır - Tarifler
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_9_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_9">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/general/">
+<span class="md-ellipsis">
+    
+  
+  Genel - Nasıl Yapılır - Tarifler
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/migrate-from-pydantic-v1-to-pydantic-v2/">
+<span class="md-ellipsis">
+    
+  
+  Pydantic v1'den Pydantic v2'ye Geçiş
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/graphql/">
+<span class="md-ellipsis">
+    
+  
+  GraphQL
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/custom-request-and-route/">
+<span class="md-ellipsis">
+    
+  
+  Özel Request ve APIRoute sınıfı
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/conditional-openapi/">
+<span class="md-ellipsis">
+    
+  
+  Koşullu OpenAPI
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/extending-openapi/">
+<span class="md-ellipsis">
+    
+  
+  OpenAPI'yi Genişletme
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/separate-openapi-schemas/">
+<span class="md-ellipsis">
+    
+  
+  Input ve Output için Ayrı OpenAPI Schema'ları (Ya da Değil)
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/custom-docs-ui-assets/">
+<span class="md-ellipsis">
+    
+  
+  Özel Docs UI Statik Varlıkları (Self-Hosting)
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/configure-swagger-ui/">
+<span class="md-ellipsis">
+    
+  
+  Swagger UI'yi Yapılandırın
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/testing-database/">
+<span class="md-ellipsis">
+    
+  
+  Bir Veritabanını Test Etmek
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../how-to/authentication-error-status-code/">
+<span class="md-ellipsis">
+    
+  
+  Eski 403 Kimlik Doğrulama Hata Durum Kodlarını Kullanma
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_4" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../">
+<span class="md-ellipsis">
+    
+  
+  Reference
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="true" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../fastapi/">
+<span class="md-ellipsis">
+    
+  
+  FastAPI class
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../parameters/">
+<span class="md-ellipsis">
+    
+  
+  Request Parameters
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../status/">
+<span class="md-ellipsis">
+    
+  
+  Status Codes
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../uploadfile/">
+<span class="md-ellipsis">
+    
+  
+  UploadFile class
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../exceptions/">
+<span class="md-ellipsis">
+    
+  
+  Exceptions - HTTPException and WebSocketException
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+  Dependencies - Depends() and Security()
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="././">
+<span class="md-ellipsis">
+    
+  
+  Dependencies - Depends() and Security()
+
+    
+  </span>
+</a>
+<nav aria-label="İçindekiler" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      İçindekiler
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#depends">
+<span class="md-ellipsis">
+<span class="md-typeset">
+<code>Depends()</code>
+</span>
+</span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#fastapi.Depends">
+<span class="md-ellipsis">
+<span class="md-typeset">
+<code class="doc-symbol doc-symbol-toc doc-symbol-function"></code> Depends
+      </span>
+</span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#security">
+<span class="md-ellipsis">
+<span class="md-typeset">
+<code>Security()</code>
+</span>
+</span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#fastapi.Security">
+<span class="md-ellipsis">
+<span class="md-typeset">
+<code class="doc-symbol doc-symbol-toc doc-symbol-function"></code> Security
+      </span>
+</span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../apirouter/">
+<span class="md-ellipsis">
+    
+  
+  APIRouter class
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../background/">
+<span class="md-ellipsis">
+    
+  
+  Background Tasks - BackgroundTasks
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../request/">
+<span class="md-ellipsis">
+    
+  
+  Request class
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../websockets/">
+<span class="md-ellipsis">
+    
+  
+  WebSockets
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../httpconnection/">
+<span class="md-ellipsis">
+    
+  
+  HTTPConnection class
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../response/">
+<span class="md-ellipsis">
+    
+  
+  Response class
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../responses/">
+<span class="md-ellipsis">
+    
+  
+  Custom Response Classes - File, HTML, Redirect, Streaming, etc.
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../sse/">
+<span class="md-ellipsis">
+    
+  
+  Server-Sent Events - EventSourceResponse and ServerSentEvent
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../middleware/">
+<span class="md-ellipsis">
+    
+  
+  Middleware
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_4_17" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../openapi/">
+<span class="md-ellipsis">
+    
+  
+  OpenAPI
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_4_17" id="__nav_4_17_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_4_17_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_4_17">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../openapi/docs/">
+<span class="md-ellipsis">
+    
+  
+  OpenAPI docs
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../openapi/models/">
+<span class="md-ellipsis">
+    
+  
+  OpenAPI models
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../security/">
+<span class="md-ellipsis">
+    
+  
+  Security Tools
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../encoders/">
+<span class="md-ellipsis">
+    
+  
+  Encoders - jsonable_encoder
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../staticfiles/">
+<span class="md-ellipsis">
+    
+  
+  Static Files - StaticFiles
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../templating/">
+<span class="md-ellipsis">
+    
+  
+  Templating - Jinja2Templates
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../testclient/">
+<span class="md-ellipsis">
+    
+  
+  Test Client - TestClient
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_5" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../resources/">
+<span class="md-ellipsis">
+    
+  
+  Kaynaklar
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_5">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../fastapi-people/">
+<span class="md-ellipsis">
+    
+  
+  FastAPI People
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../help-fastapi/">
+<span class="md-ellipsis">
+    
+  
+  Yardım
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../contributing/">
+<span class="md-ellipsis">
+    
+  
+  Contributing
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../translations/">
+<span class="md-ellipsis">
+    
+  
+  Translations
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../project-generation/">
+<span class="md-ellipsis">
+    
+  
+  Full Stack FastAPI Şablonu
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../external-links/">
+<span class="md-ellipsis">
+    
+  
+  External Links
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../newsletter/">
+<span class="md-ellipsis">
+    
+  
+  FastAPI and friends newsletter
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_6" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../about/">
+<span class="md-ellipsis">
+    
+  
+  Hakkında
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_6">
+<span class="md-nav__icon md-icon"></span>
+</label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../alternatives/">
+<span class="md-ellipsis">
+    
+  
+  Alternatifler, İlham Kaynakları ve Karşılaştırmalar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../history-design-future/">
+<span class="md-ellipsis">
+    
+  
+  Geçmişi, Tasarımı ve Geleceği
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../benchmarks/">
+<span class="md-ellipsis">
+    
+  
+  Kıyaslamalar
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../management/">
+<span class="md-ellipsis">
+    
+  
+  Repository Management
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../release-notes/">
+<span class="md-ellipsis">
+    
+  
+  Release Notes
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="İçindekiler" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      İçindekiler
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#depends">
+<span class="md-ellipsis">
+<span class="md-typeset">
+<code>Depends()</code>
+</span>
+</span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#fastapi.Depends">
+<span class="md-ellipsis">
+<span class="md-typeset">
+<code class="doc-symbol doc-symbol-toc doc-symbol-function"></code> Depends
+      </span>
+</span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#security">
+<span class="md-ellipsis">
+<span class="md-typeset">
+<code>Security()</code>
+</span>
+</span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#fastapi.Security">
+<span class="md-ellipsis">
+<span class="md-typeset">
+<code class="doc-symbol doc-symbol-toc doc-symbol-function"></code> Security
+      </span>
+</span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<nav aria-label="Navigasyon" class="md-path">
+<ol class="md-path__list">
+<li class="md-path__item">
+<a class="md-path__link" href="../..">
+<span class="md-ellipsis">
+    FastAPI
+  </span>
+</a>
+</li>
+<li class="md-path__item">
+<a class="md-path__link" href="../">
+<span class="md-ellipsis">
+    Reference
+  </span>
+</a>
+</li>
+</ol>
+</nav>
+<article class="md-content__inner md-typeset">
+<h1 id="dependencies-depends-and-security">Dependencies - <code>Depends()</code> and <code>Security()</code><a class="headerlink" href="#dependencies-depends-and-security" title="Permanent link">¶</a></h1>
+<h2 id="depends"><code>Depends()</code><a class="headerlink" href="#depends" title="Permanent link">¶</a></h2>
+<p>Dependencies are handled mainly with the special function <code>Depends()</code> that takes a callable.</p>
+<p>Here is the reference for it and its parameters.</p>
+<p>You can import it directly from <code>fastapi</code>:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1"><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">Depends</span>
+</span></code></pre></div>
+<div class="doc doc-object doc-function">
+<h2 class="doc doc-heading" id="fastapi.Depends">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code> <span class="doc doc-object-name doc-function-name">fastapi.Depends</span>
+<a class="headerlink" href="#fastapi.Depends" title="Permanent link">¶</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><span class="nf">Depends</span><span class="p">(</span><span class="n">dependency</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span></code></pre></div>
+<div class="doc doc-contents first">
+<p>Declare a FastAPI dependency.</p>
+<p>It takes a single "dependable" callable (like a function).</p>
+<p>Don't call it directly, FastAPI will call it for you.</p>
+<p>Read more about it in the
+<a href="https://fastapi.tiangolo.com/tutorial/dependencies/">FastAPI docs for Dependencies</a>.</p>
+<p><strong>Example</strong></p>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+</span><span id="__span-0-2">
+</span><span id="__span-0-3"><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">Depends</span><span class="p">,</span> <span class="n">FastAPI</span>
+</span><span id="__span-0-4">
+</span><span id="__span-0-5"><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+</span><span id="__span-0-6">
+</span><span id="__span-0-7">
+</span><span id="__span-0-8"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">common_parameters</span><span class="p">(</span><span class="n">q</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">skip</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">):</span>
+</span><span id="__span-0-9">    <span class="k">return</span> <span class="p">{</span><span class="s2">"q"</span><span class="p">:</span> <span class="n">q</span><span class="p">,</span> <span class="s2">"skip"</span><span class="p">:</span> <span class="n">skip</span><span class="p">,</span> <span class="s2">"limit"</span><span class="p">:</span> <span class="n">limit</span><span class="p">}</span>
+</span><span id="__span-0-10">
+</span><span id="__span-0-11">
+</span><span id="__span-0-12"><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"/items/"</span><span class="p">)</span>
+</span><span id="__span-0-13"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">read_items</span><span class="p">(</span><span class="n">commons</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="n">Depends</span><span class="p">(</span><span class="n">common_parameters</span><span class="p">)]):</span>
+</span><span id="__span-0-14">    <span class="k">return</span> <span class="n">commons</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th><span class="doc-section-title">PARAMETER</span></th>
+<th><span>DESCRIPTION</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="doc-section-item">
+<td>
+<code>dependency</code>
+</td>
+<td class="doc-param-details">
+<div class="doc-md-description">
+<p>A "dependable" callable (like a function).</p>
+<p>Don't call it directly, FastAPI will call it for you, just pass the object
+directly.</p>
+<p>Read more about it in the
+<a href="https://fastapi.tiangolo.com/tutorial/dependencies/">FastAPI docs for Dependencies</a></p>
+</div>
+<p>
+<span class="doc-param-annotation">
+<b>TYPE:</b>
+<code><span title="collections.abc.Callable">Callable</span>[..., <span title="typing.Any">Any</span>] | None</code>
+</span>
+<span class="doc-param-default">
+<b>DEFAULT:</b>
+<code>None</code>
+</span>
+</p>
+</td>
+</tr>
+<tr class="doc-section-item">
+<td>
+<code>use_cache</code>
+</td>
+<td class="doc-param-details">
+<div class="doc-md-description">
+<p>By default, after a dependency is called the first time in a request, if
+the dependency is declared again for the rest of the request (for example
+if the dependency is needed by several dependencies), the value will be
+re-used for the rest of the request.</p>
+<p>Set <code>use_cache</code> to <code>False</code> to disable this behavior and ensure the
+dependency is called again (if declared more than once) in the same request.</p>
+<p>Read more about it in the
+<a href="https://fastapi.tiangolo.com/tutorial/dependencies/sub-dependencies/#using-the-same-dependency-multiple-times">FastAPI docs about sub-dependencies</a></p>
+</div>
+<p>
+<span class="doc-param-annotation">
+<b>TYPE:</b>
+<code><span title="bool">bool</span></code>
+</span>
+<span class="doc-param-default">
+<b>DEFAULT:</b>
+<code>True</code>
+</span>
+</p>
+</td>
+</tr>
+<tr class="doc-section-item">
+<td>
+<code>scope</code>
+</td>
+<td class="doc-param-details">
+<div class="doc-md-description">
+<p>Mainly for dependencies with <code>yield</code>, define when the dependency function
+should start (the code before <code>yield</code>) and when it should end (the code
+after <code>yield</code>).</p>
+<ul>
+<li><code>"function"</code>: start the dependency before the <em>path operation function</em>
+    that handles the request, end the dependency after the <em>path operation
+    function</em> ends, but <strong>before</strong> the response is sent back to the client.
+    So, the dependency function will be executed <strong>around</strong> the <em>path operation
+    <strong>function</strong></em>.</li>
+<li><code>"request"</code>: start the dependency before the <em>path operation function</em>
+    that handles the request (similar to when using <code>"function"</code>), but end
+    <strong>after</strong> the response is sent back to the client. So, the dependency
+    function will be executed <strong>around</strong> the <strong>request</strong> and response cycle.</li>
+</ul>
+<p>Read more about it in the
+<a href="https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/#early-exit-and-scope">FastAPI docs for FastAPI Dependencies with yield</a></p>
+</div>
+<p>
+<span class="doc-param-annotation">
+<b>TYPE:</b>
+<code><span title="typing.Literal">Literal</span>['function', 'request'] | None</code>
+</span>
+<span class="doc-param-default">
+<b>DEFAULT:</b>
+<code>None</code>
+</span>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+<details class="mkdocstrings-source">
+<summary>Source code in <code>fastapi/param_functions.py</code></summary>
+<div class="highlight"><pre><span></span><code><span id="__span-0-2391"><span class="linenos" data-linenos="2391 "></span><span class="k">def</span><span class="w"> </span><span class="nf">Depends</span><span class="p">(</span>  <span class="c1"># noqa: N802</span>
+</span><span id="__span-0-2392"><span class="linenos" data-linenos="2392 "></span>    <span class="n">dependency</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span id="__span-0-2393"><span class="linenos" data-linenos="2393 "></span>        <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-2394"><span class="linenos" data-linenos="2394 "></span>        <span class="n">Doc</span><span class="p">(</span>
+</span><span id="__span-0-2395"><span class="linenos" data-linenos="2395 "></span><span class="w">            </span><span class="sd">"""</span>
+</span><span id="__span-0-2396"><span class="linenos" data-linenos="2396 "></span><span class="sd">            A "dependable" callable (like a function).</span>
+</span><span id="__span-0-2397"><span class="linenos" data-linenos="2397 "></span>
+</span><span id="__span-0-2398"><span class="linenos" data-linenos="2398 "></span><span class="sd">            Don't call it directly, FastAPI will call it for you, just pass the object</span>
+</span><span id="__span-0-2399"><span class="linenos" data-linenos="2399 "></span><span class="sd">            directly.</span>
+</span><span id="__span-0-2400"><span class="linenos" data-linenos="2400 "></span>
+</span><span id="__span-0-2401"><span class="linenos" data-linenos="2401 "></span><span class="sd">            Read more about it in the</span>
+</span><span id="__span-0-2402"><span class="linenos" data-linenos="2402 "></span><span class="sd">            [FastAPI docs for Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/)</span>
+</span><span id="__span-0-2403"><span class="linenos" data-linenos="2403 "></span><span class="sd">            """</span>
+</span><span id="__span-0-2404"><span class="linenos" data-linenos="2404 "></span>        <span class="p">),</span>
+</span><span id="__span-0-2405"><span class="linenos" data-linenos="2405 "></span>    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-2406"><span class="linenos" data-linenos="2406 "></span>    <span class="o">*</span><span class="p">,</span>
+</span><span id="__span-0-2407"><span class="linenos" data-linenos="2407 "></span>    <span class="n">use_cache</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span id="__span-0-2408"><span class="linenos" data-linenos="2408 "></span>        <span class="nb">bool</span><span class="p">,</span>
+</span><span id="__span-0-2409"><span class="linenos" data-linenos="2409 "></span>        <span class="n">Doc</span><span class="p">(</span>
+</span><span id="__span-0-2410"><span class="linenos" data-linenos="2410 "></span><span class="w">            </span><span class="sd">"""</span>
+</span><span id="__span-0-2411"><span class="linenos" data-linenos="2411 "></span><span class="sd">            By default, after a dependency is called the first time in a request, if</span>
+</span><span id="__span-0-2412"><span class="linenos" data-linenos="2412 "></span><span class="sd">            the dependency is declared again for the rest of the request (for example</span>
+</span><span id="__span-0-2413"><span class="linenos" data-linenos="2413 "></span><span class="sd">            if the dependency is needed by several dependencies), the value will be</span>
+</span><span id="__span-0-2414"><span class="linenos" data-linenos="2414 "></span><span class="sd">            re-used for the rest of the request.</span>
+</span><span id="__span-0-2415"><span class="linenos" data-linenos="2415 "></span>
+</span><span id="__span-0-2416"><span class="linenos" data-linenos="2416 "></span><span class="sd">            Set `use_cache` to `False` to disable this behavior and ensure the</span>
+</span><span id="__span-0-2417"><span class="linenos" data-linenos="2417 "></span><span class="sd">            dependency is called again (if declared more than once) in the same request.</span>
+</span><span id="__span-0-2418"><span class="linenos" data-linenos="2418 "></span>
+</span><span id="__span-0-2419"><span class="linenos" data-linenos="2419 "></span><span class="sd">            Read more about it in the</span>
+</span><span id="__span-0-2420"><span class="linenos" data-linenos="2420 "></span><span class="sd">            [FastAPI docs about sub-dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/sub-dependencies/#using-the-same-dependency-multiple-times)</span>
+</span><span id="__span-0-2421"><span class="linenos" data-linenos="2421 "></span><span class="sd">            """</span>
+</span><span id="__span-0-2422"><span class="linenos" data-linenos="2422 "></span>        <span class="p">),</span>
+</span><span id="__span-0-2423"><span class="linenos" data-linenos="2423 "></span>    <span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-0-2424"><span class="linenos" data-linenos="2424 "></span>    <span class="n">scope</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span id="__span-0-2425"><span class="linenos" data-linenos="2425 "></span>        <span class="n">Literal</span><span class="p">[</span><span class="s2">"function"</span><span class="p">,</span> <span class="s2">"request"</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-2426"><span class="linenos" data-linenos="2426 "></span>        <span class="n">Doc</span><span class="p">(</span>
+</span><span id="__span-0-2427"><span class="linenos" data-linenos="2427 "></span><span class="w">            </span><span class="sd">"""</span>
+</span><span id="__span-0-2428"><span class="linenos" data-linenos="2428 "></span><span class="sd">            Mainly for dependencies with `yield`, define when the dependency function</span>
+</span><span id="__span-0-2429"><span class="linenos" data-linenos="2429 "></span><span class="sd">            should start (the code before `yield`) and when it should end (the code</span>
+</span><span id="__span-0-2430"><span class="linenos" data-linenos="2430 "></span><span class="sd">            after `yield`).</span>
+</span><span id="__span-0-2431"><span class="linenos" data-linenos="2431 "></span>
+</span><span id="__span-0-2432"><span class="linenos" data-linenos="2432 "></span><span class="sd">            * `"function"`: start the dependency before the *path operation function*</span>
+</span><span id="__span-0-2433"><span class="linenos" data-linenos="2433 "></span><span class="sd">                that handles the request, end the dependency after the *path operation</span>
+</span><span id="__span-0-2434"><span class="linenos" data-linenos="2434 "></span><span class="sd">                function* ends, but **before** the response is sent back to the client.</span>
+</span><span id="__span-0-2435"><span class="linenos" data-linenos="2435 "></span><span class="sd">                So, the dependency function will be executed **around** the *path operation</span>
+</span><span id="__span-0-2436"><span class="linenos" data-linenos="2436 "></span><span class="sd">                **function***.</span>
+</span><span id="__span-0-2437"><span class="linenos" data-linenos="2437 "></span><span class="sd">            * `"request"`: start the dependency before the *path operation function*</span>
+</span><span id="__span-0-2438"><span class="linenos" data-linenos="2438 "></span><span class="sd">                that handles the request (similar to when using `"function"`), but end</span>
+</span><span id="__span-0-2439"><span class="linenos" data-linenos="2439 "></span><span class="sd">                **after** the response is sent back to the client. So, the dependency</span>
+</span><span id="__span-0-2440"><span class="linenos" data-linenos="2440 "></span><span class="sd">                function will be executed **around** the **request** and response cycle.</span>
+</span><span id="__span-0-2441"><span class="linenos" data-linenos="2441 "></span>
+</span><span id="__span-0-2442"><span class="linenos" data-linenos="2442 "></span><span class="sd">            Read more about it in the</span>
+</span><span id="__span-0-2443"><span class="linenos" data-linenos="2443 "></span><span class="sd">            [FastAPI docs for FastAPI Dependencies with yield](https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/#early-exit-and-scope)</span>
+</span><span id="__span-0-2444"><span class="linenos" data-linenos="2444 "></span><span class="sd">            """</span>
+</span><span id="__span-0-2445"><span class="linenos" data-linenos="2445 "></span>        <span class="p">),</span>
+</span><span id="__span-0-2446"><span class="linenos" data-linenos="2446 "></span>    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-2447"><span class="linenos" data-linenos="2447 "></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+</span><span id="__span-0-2448"><span class="linenos" data-linenos="2448 "></span><span class="w">    </span><span class="sd">"""</span>
+</span><span id="__span-0-2449"><span class="linenos" data-linenos="2449 "></span><span class="sd">    Declare a FastAPI dependency.</span>
+</span><span id="__span-0-2450"><span class="linenos" data-linenos="2450 "></span>
+</span><span id="__span-0-2451"><span class="linenos" data-linenos="2451 "></span><span class="sd">    It takes a single "dependable" callable (like a function).</span>
+</span><span id="__span-0-2452"><span class="linenos" data-linenos="2452 "></span>
+</span><span id="__span-0-2453"><span class="linenos" data-linenos="2453 "></span><span class="sd">    Don't call it directly, FastAPI will call it for you.</span>
+</span><span id="__span-0-2454"><span class="linenos" data-linenos="2454 "></span>
+</span><span id="__span-0-2455"><span class="linenos" data-linenos="2455 "></span><span class="sd">    Read more about it in the</span>
+</span><span id="__span-0-2456"><span class="linenos" data-linenos="2456 "></span><span class="sd">    [FastAPI docs for Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/).</span>
+</span><span id="__span-0-2457"><span class="linenos" data-linenos="2457 "></span>
+</span><span id="__span-0-2458"><span class="linenos" data-linenos="2458 "></span><span class="sd">    **Example**</span>
+</span><span id="__span-0-2459"><span class="linenos" data-linenos="2459 "></span>
+</span><span id="__span-0-2460"><span class="linenos" data-linenos="2460 "></span><span class="sd">    ```python</span>
+</span><span id="__span-0-2461"><span class="linenos" data-linenos="2461 "></span><span class="sd">    from typing import Annotated</span>
+</span><span id="__span-0-2462"><span class="linenos" data-linenos="2462 "></span>
+</span><span id="__span-0-2463"><span class="linenos" data-linenos="2463 "></span><span class="sd">    from fastapi import Depends, FastAPI</span>
+</span><span id="__span-0-2464"><span class="linenos" data-linenos="2464 "></span>
+</span><span id="__span-0-2465"><span class="linenos" data-linenos="2465 "></span><span class="sd">    app = FastAPI()</span>
+</span><span id="__span-0-2466"><span class="linenos" data-linenos="2466 "></span>
+</span><span id="__span-0-2467"><span class="linenos" data-linenos="2467 "></span>
+</span><span id="__span-0-2468"><span class="linenos" data-linenos="2468 "></span><span class="sd">    async def common_parameters(q: str | None = None, skip: int = 0, limit: int = 100):</span>
+</span><span id="__span-0-2469"><span class="linenos" data-linenos="2469 "></span><span class="sd">        return {"q": q, "skip": skip, "limit": limit}</span>
+</span><span id="__span-0-2470"><span class="linenos" data-linenos="2470 "></span>
+</span><span id="__span-0-2471"><span class="linenos" data-linenos="2471 "></span>
+</span><span id="__span-0-2472"><span class="linenos" data-linenos="2472 "></span><span class="sd">    @app.get("/items/")</span>
+</span><span id="__span-0-2473"><span class="linenos" data-linenos="2473 "></span><span class="sd">    async def read_items(commons: Annotated[dict, Depends(common_parameters)]):</span>
+</span><span id="__span-0-2474"><span class="linenos" data-linenos="2474 "></span><span class="sd">        return commons</span>
+</span><span id="__span-0-2475"><span class="linenos" data-linenos="2475 "></span><span class="sd">    ```</span>
+</span><span id="__span-0-2476"><span class="linenos" data-linenos="2476 "></span><span class="sd">    """</span>
+</span><span id="__span-0-2477"><span class="linenos" data-linenos="2477 "></span>    <span class="k">return</span> <span class="n">params</span><span class="o">.</span><span class="n">Depends</span><span class="p">(</span><span class="n">dependency</span><span class="o">=</span><span class="n">dependency</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="n">use_cache</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">)</span>
+</span></code></pre></div>
+</details>
+</div>
+</div><h2 id="security"><code>Security()</code><a class="headerlink" href="#security" title="Permanent link">¶</a></h2>
+<p>For many scenarios, you can handle security (authorization, authentication, etc.) with dependencies, using <code>Depends()</code>.</p>
+<p>But when you want to also declare OAuth2 scopes, you can use <code>Security()</code> instead of <code>Depends()</code>.</p>
+<p>You can import <code>Security()</code> directly from <code>fastapi</code>:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-1-1"><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">Security</span>
+</span></code></pre></div>
+<div class="doc doc-object doc-function">
+<h2 class="doc doc-heading" id="fastapi.Security">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code> <span class="doc doc-object-name doc-function-name">fastapi.Security</span>
+<a class="headerlink" href="#fastapi.Security" title="Permanent link">¶</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><span class="nf">Security</span><span class="p">(</span><span class="n">dependency</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></code></pre></div>
+<div class="doc doc-contents first">
+<p>Declare a FastAPI Security dependency.</p>
+<p>The only difference with a regular dependency is that it can declare OAuth2
+scopes that will be integrated with OpenAPI and the automatic UI docs (by default
+at <code>/docs</code>).</p>
+<p>It takes a single "dependable" callable (like a function).</p>
+<p>Don't call it directly, FastAPI will call it for you.</p>
+<p>Read more about it in the
+<a href="https://fastapi.tiangolo.com/tutorial/security/">FastAPI docs for Security</a> and
+in the
+<a href="https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/">FastAPI docs for OAuth2 scopes</a>.</p>
+<p><strong>Example</strong></p>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+</span><span id="__span-0-2">
+</span><span id="__span-0-3"><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">Security</span><span class="p">,</span> <span class="n">FastAPI</span>
+</span><span id="__span-0-4">
+</span><span id="__span-0-5"><span class="kn">from</span><span class="w"> </span><span class="nn">.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">User</span>
+</span><span id="__span-0-6"><span class="kn">from</span><span class="w"> </span><span class="nn">.security</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_current_active_user</span>
+</span><span id="__span-0-7">
+</span><span id="__span-0-8"><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+</span><span id="__span-0-9">
+</span><span id="__span-0-10"><span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"/users/me/items/"</span><span class="p">)</span>
+</span><span id="__span-0-11"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">read_own_items</span><span class="p">(</span>
+</span><span id="__span-0-12">    <span class="n">current_user</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">User</span><span class="p">,</span> <span class="n">Security</span><span class="p">(</span><span class="n">get_current_active_user</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="s2">"items"</span><span class="p">])]</span>
+</span><span id="__span-0-13"><span class="p">):</span>
+</span><span id="__span-0-14">    <span class="k">return</span> <span class="p">[{</span><span class="s2">"item_id"</span><span class="p">:</span> <span class="s2">"Foo"</span><span class="p">,</span> <span class="s2">"owner"</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">username</span><span class="p">}]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th><span class="doc-section-title">PARAMETER</span></th>
+<th><span>DESCRIPTION</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="doc-section-item">
+<td>
+<code>dependency</code>
+</td>
+<td class="doc-param-details">
+<div class="doc-md-description">
+<p>A "dependable" callable (like a function).</p>
+<p>Don't call it directly, FastAPI will call it for you, just pass the object
+directly.</p>
+<p>Read more about it in the
+<a href="https://fastapi.tiangolo.com/tutorial/dependencies/">FastAPI docs for Dependencies</a></p>
+</div>
+<p>
+<span class="doc-param-annotation">
+<b>TYPE:</b>
+<code><span title="collections.abc.Callable">Callable</span>[..., <span title="typing.Any">Any</span>] | None</code>
+</span>
+<span class="doc-param-default">
+<b>DEFAULT:</b>
+<code>None</code>
+</span>
+</p>
+</td>
+</tr>
+<tr class="doc-section-item">
+<td>
+<code>scopes</code>
+</td>
+<td class="doc-param-details">
+<div class="doc-md-description">
+<p>OAuth2 scopes required for the <em>path operation</em> that uses this Security
+dependency.</p>
+<p>The term "scope" comes from the OAuth2 specification, it seems to be
+intentionally vague and interpretable. It normally refers to permissions,
+in cases to roles.</p>
+<p>These scopes are integrated with OpenAPI (and the API docs at <code>/docs</code>).
+So they are visible in the OpenAPI specification.</p>
+<p>Read more about it in the
+<a href="https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/">FastAPI docs about OAuth2 scopes</a></p>
+</div>
+<p>
+<span class="doc-param-annotation">
+<b>TYPE:</b>
+<code><span title="collections.abc.Sequence">Sequence</span>[<span title="str">str</span>] | None</code>
+</span>
+<span class="doc-param-default">
+<b>DEFAULT:</b>
+<code>None</code>
+</span>
+</p>
+</td>
+</tr>
+<tr class="doc-section-item">
+<td>
+<code>use_cache</code>
+</td>
+<td class="doc-param-details">
+<div class="doc-md-description">
+<p>By default, after a dependency is called the first time in a request, if
+the dependency is declared again for the rest of the request (for example
+if the dependency is needed by several dependencies), the value will be
+re-used for the rest of the request.</p>
+<p>Set <code>use_cache</code> to <code>False</code> to disable this behavior and ensure the
+dependency is called again (if declared more than once) in the same request.</p>
+<p>Read more about it in the
+<a href="https://fastapi.tiangolo.com/tutorial/dependencies/sub-dependencies/#using-the-same-dependency-multiple-times">FastAPI docs about sub-dependencies</a></p>
+</div>
+<p>
+<span class="doc-param-annotation">
+<b>TYPE:</b>
+<code><span title="bool">bool</span></code>
+</span>
+<span class="doc-param-default">
+<b>DEFAULT:</b>
+<code>True</code>
+</span>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+<details class="mkdocstrings-source">
+<summary>Source code in <code>fastapi/param_functions.py</code></summary>
+<div class="highlight"><pre><span></span><code><span id="__span-0-2480"><span class="linenos" data-linenos="2480 "></span><span class="k">def</span><span class="w"> </span><span class="nf">Security</span><span class="p">(</span>  <span class="c1"># noqa: N802</span>
+</span><span id="__span-0-2481"><span class="linenos" data-linenos="2481 "></span>    <span class="n">dependency</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span id="__span-0-2482"><span class="linenos" data-linenos="2482 "></span>        <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-2483"><span class="linenos" data-linenos="2483 "></span>        <span class="n">Doc</span><span class="p">(</span>
+</span><span id="__span-0-2484"><span class="linenos" data-linenos="2484 "></span><span class="w">            </span><span class="sd">"""</span>
+</span><span id="__span-0-2485"><span class="linenos" data-linenos="2485 "></span><span class="sd">            A "dependable" callable (like a function).</span>
+</span><span id="__span-0-2486"><span class="linenos" data-linenos="2486 "></span>
+</span><span id="__span-0-2487"><span class="linenos" data-linenos="2487 "></span><span class="sd">            Don't call it directly, FastAPI will call it for you, just pass the object</span>
+</span><span id="__span-0-2488"><span class="linenos" data-linenos="2488 "></span><span class="sd">            directly.</span>
+</span><span id="__span-0-2489"><span class="linenos" data-linenos="2489 "></span>
+</span><span id="__span-0-2490"><span class="linenos" data-linenos="2490 "></span><span class="sd">            Read more about it in the</span>
+</span><span id="__span-0-2491"><span class="linenos" data-linenos="2491 "></span><span class="sd">            [FastAPI docs for Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/)</span>
+</span><span id="__span-0-2492"><span class="linenos" data-linenos="2492 "></span><span class="sd">            """</span>
+</span><span id="__span-0-2493"><span class="linenos" data-linenos="2493 "></span>        <span class="p">),</span>
+</span><span id="__span-0-2494"><span class="linenos" data-linenos="2494 "></span>    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-2495"><span class="linenos" data-linenos="2495 "></span>    <span class="o">*</span><span class="p">,</span>
+</span><span id="__span-0-2496"><span class="linenos" data-linenos="2496 "></span>    <span class="n">scopes</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span id="__span-0-2497"><span class="linenos" data-linenos="2497 "></span>        <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-2498"><span class="linenos" data-linenos="2498 "></span>        <span class="n">Doc</span><span class="p">(</span>
+</span><span id="__span-0-2499"><span class="linenos" data-linenos="2499 "></span><span class="w">            </span><span class="sd">"""</span>
+</span><span id="__span-0-2500"><span class="linenos" data-linenos="2500 "></span><span class="sd">            OAuth2 scopes required for the *path operation* that uses this Security</span>
+</span><span id="__span-0-2501"><span class="linenos" data-linenos="2501 "></span><span class="sd">            dependency.</span>
+</span><span id="__span-0-2502"><span class="linenos" data-linenos="2502 "></span>
+</span><span id="__span-0-2503"><span class="linenos" data-linenos="2503 "></span><span class="sd">            The term "scope" comes from the OAuth2 specification, it seems to be</span>
+</span><span id="__span-0-2504"><span class="linenos" data-linenos="2504 "></span><span class="sd">            intentionally vague and interpretable. It normally refers to permissions,</span>
+</span><span id="__span-0-2505"><span class="linenos" data-linenos="2505 "></span><span class="sd">            in cases to roles.</span>
+</span><span id="__span-0-2506"><span class="linenos" data-linenos="2506 "></span>
+</span><span id="__span-0-2507"><span class="linenos" data-linenos="2507 "></span><span class="sd">            These scopes are integrated with OpenAPI (and the API docs at `/docs`).</span>
+</span><span id="__span-0-2508"><span class="linenos" data-linenos="2508 "></span><span class="sd">            So they are visible in the OpenAPI specification.</span>
+</span><span id="__span-0-2509"><span class="linenos" data-linenos="2509 "></span>
+</span><span id="__span-0-2510"><span class="linenos" data-linenos="2510 "></span><span class="sd">            Read more about it in the</span>
+</span><span id="__span-0-2511"><span class="linenos" data-linenos="2511 "></span><span class="sd">            [FastAPI docs about OAuth2 scopes](https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/)</span>
+</span><span id="__span-0-2512"><span class="linenos" data-linenos="2512 "></span><span class="sd">            """</span>
+</span><span id="__span-0-2513"><span class="linenos" data-linenos="2513 "></span>        <span class="p">),</span>
+</span><span id="__span-0-2514"><span class="linenos" data-linenos="2514 "></span>    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-2515"><span class="linenos" data-linenos="2515 "></span>    <span class="n">use_cache</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span id="__span-0-2516"><span class="linenos" data-linenos="2516 "></span>        <span class="nb">bool</span><span class="p">,</span>
+</span><span id="__span-0-2517"><span class="linenos" data-linenos="2517 "></span>        <span class="n">Doc</span><span class="p">(</span>
+</span><span id="__span-0-2518"><span class="linenos" data-linenos="2518 "></span><span class="w">            </span><span class="sd">"""</span>
+</span><span id="__span-0-2519"><span class="linenos" data-linenos="2519 "></span><span class="sd">            By default, after a dependency is called the first time in a request, if</span>
+</span><span id="__span-0-2520"><span class="linenos" data-linenos="2520 "></span><span class="sd">            the dependency is declared again for the rest of the request (for example</span>
+</span><span id="__span-0-2521"><span class="linenos" data-linenos="2521 "></span><span class="sd">            if the dependency is needed by several dependencies), the value will be</span>
+</span><span id="__span-0-2522"><span class="linenos" data-linenos="2522 "></span><span class="sd">            re-used for the rest of the request.</span>
+</span><span id="__span-0-2523"><span class="linenos" data-linenos="2523 "></span>
+</span><span id="__span-0-2524"><span class="linenos" data-linenos="2524 "></span><span class="sd">            Set `use_cache` to `False` to disable this behavior and ensure the</span>
+</span><span id="__span-0-2525"><span class="linenos" data-linenos="2525 "></span><span class="sd">            dependency is called again (if declared more than once) in the same request.</span>
+</span><span id="__span-0-2526"><span class="linenos" data-linenos="2526 "></span>
+</span><span id="__span-0-2527"><span class="linenos" data-linenos="2527 "></span><span class="sd">            Read more about it in the</span>
+</span><span id="__span-0-2528"><span class="linenos" data-linenos="2528 "></span><span class="sd">            [FastAPI docs about sub-dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/sub-dependencies/#using-the-same-dependency-multiple-times)</span>
+</span><span id="__span-0-2529"><span class="linenos" data-linenos="2529 "></span><span class="sd">            """</span>
+</span><span id="__span-0-2530"><span class="linenos" data-linenos="2530 "></span>        <span class="p">),</span>
+</span><span id="__span-0-2531"><span class="linenos" data-linenos="2531 "></span>    <span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-0-2532"><span class="linenos" data-linenos="2532 "></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+</span><span id="__span-0-2533"><span class="linenos" data-linenos="2533 "></span><span class="w">    </span><span class="sd">"""</span>
+</span><span id="__span-0-2534"><span class="linenos" data-linenos="2534 "></span><span class="sd">    Declare a FastAPI Security dependency.</span>
+</span><span id="__span-0-2535"><span class="linenos" data-linenos="2535 "></span>
+</span><span id="__span-0-2536"><span class="linenos" data-linenos="2536 "></span><span class="sd">    The only difference with a regular dependency is that it can declare OAuth2</span>
+</span><span id="__span-0-2537"><span class="linenos" data-linenos="2537 "></span><span class="sd">    scopes that will be integrated with OpenAPI and the automatic UI docs (by default</span>
+</span><span id="__span-0-2538"><span class="linenos" data-linenos="2538 "></span><span class="sd">    at `/docs`).</span>
+</span><span id="__span-0-2539"><span class="linenos" data-linenos="2539 "></span>
+</span><span id="__span-0-2540"><span class="linenos" data-linenos="2540 "></span><span class="sd">    It takes a single "dependable" callable (like a function).</span>
+</span><span id="__span-0-2541"><span class="linenos" data-linenos="2541 "></span>
+</span><span id="__span-0-2542"><span class="linenos" data-linenos="2542 "></span><span class="sd">    Don't call it directly, FastAPI will call it for you.</span>
+</span><span id="__span-0-2543"><span class="linenos" data-linenos="2543 "></span>
+</span><span id="__span-0-2544"><span class="linenos" data-linenos="2544 "></span><span class="sd">    Read more about it in the</span>
+</span><span id="__span-0-2545"><span class="linenos" data-linenos="2545 "></span><span class="sd">    [FastAPI docs for Security](https://fastapi.tiangolo.com/tutorial/security/) and</span>
+</span><span id="__span-0-2546"><span class="linenos" data-linenos="2546 "></span><span class="sd">    in the</span>
+</span><span id="__span-0-2547"><span class="linenos" data-linenos="2547 "></span><span class="sd">    [FastAPI docs for OAuth2 scopes](https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/).</span>
+</span><span id="__span-0-2548"><span class="linenos" data-linenos="2548 "></span>
+</span><span id="__span-0-2549"><span class="linenos" data-linenos="2549 "></span><span class="sd">    **Example**</span>
+</span><span id="__span-0-2550"><span class="linenos" data-linenos="2550 "></span>
+</span><span id="__span-0-2551"><span class="linenos" data-linenos="2551 "></span><span class="sd">    ```python</span>
+</span><span id="__span-0-2552"><span class="linenos" data-linenos="2552 "></span><span class="sd">    from typing import Annotated</span>
+</span><span id="__span-0-2553"><span class="linenos" data-linenos="2553 "></span>
+</span><span id="__span-0-2554"><span class="linenos" data-linenos="2554 "></span><span class="sd">    from fastapi import Security, FastAPI</span>
+</span><span id="__span-0-2555"><span class="linenos" data-linenos="2555 "></span>
+</span><span id="__span-0-2556"><span class="linenos" data-linenos="2556 "></span><span class="sd">    from .db import User</span>
+</span><span id="__span-0-2557"><span class="linenos" data-linenos="2557 "></span><span class="sd">    from .security import get_current_active_user</span>
+</span><span id="__span-0-2558"><span class="linenos" data-linenos="2558 "></span>
+</span><span id="__span-0-2559"><span class="linenos" data-linenos="2559 "></span><span class="sd">    app = FastAPI()</span>
+</span><span id="__span-0-2560"><span class="linenos" data-linenos="2560 "></span>
+</span><span id="__span-0-2561"><span class="linenos" data-linenos="2561 "></span><span class="sd">    @app.get("/users/me/items/")</span>
+</span><span id="__span-0-2562"><span class="linenos" data-linenos="2562 "></span><span class="sd">    async def read_own_items(</span>
+</span><span id="__span-0-2563"><span class="linenos" data-linenos="2563 "></span><span class="sd">        current_user: Annotated[User, Security(get_current_active_user, scopes=["items"])]</span>
+</span><span id="__span-0-2564"><span class="linenos" data-linenos="2564 "></span><span class="sd">    ):</span>
+</span><span id="__span-0-2565"><span class="linenos" data-linenos="2565 "></span><span class="sd">        return [{"item_id": "Foo", "owner": current_user.username}]</span>
+</span><span id="__span-0-2566"><span class="linenos" data-linenos="2566 "></span><span class="sd">    ```</span>
+</span><span id="__span-0-2567"><span class="linenos" data-linenos="2567 "></span><span class="sd">    """</span>
+</span><span id="__span-0-2568"><span class="linenos" data-linenos="2568 "></span>    <span class="k">return</span> <span class="n">params</span><span class="o">.</span><span class="n">Security</span><span class="p">(</span><span class="n">dependency</span><span class="o">=</span><span class="n">dependency</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="n">scopes</span><span class="p">,</span> <span class="n">use_cache</span><span class="o">=</span><span class="n">use_cache</span><span class="p">)</span>
+</span></code></pre></div>
+</details>
+</div>
+</div>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Başa dön
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Altbilgi" class="md-footer__inner md-grid">
+<a aria-label="Önceki: Exceptions - HTTPException and WebSocketException" class="md-footer__link md-footer__link--prev" href="../exceptions/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Önceki
+              </span>
+<div class="md-ellipsis">
+                Exceptions - HTTPException and WebSocketException
+              </div>
+</div>
+</a>
+<a aria-label="Sonraki: APIRouter class" class="md-footer__link md-footer__link--next" href="../apirouter/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Sonraki
+              </span>
+<div class="md-ellipsis">
+                APIRouter class
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+<div class="md-copyright__highlight">
+        The FastAPI trademark is owned by <a href="https://tiangolo.com" target="_blank">@tiangolo</a> and is registered in the US and across other regions
+    </div>
+    
+    Made with
+    <a href="https://zensical.org" rel="noopener" target="_blank">
+        Zensical
+    </a>
+</div>
+<div class="md-social">
+<a class="md-social__link" href="https://github.com/fastapi/fastapi" rel="noopener" target="_blank" title="github.com">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"></path></svg>
+</a>
+<a class="md-social__link" href="https://discord.com/invite/VQjSZaeJmf" rel="noopener" target="_blank" title="discord.com">
+<svg viewbox="0 0 576 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path d="M492.5 69.8c-.2-.3-.4-.6-.8-.7-38.1-17.5-78.4-30-119.7-37.1-.4-.1-.8 0-1.1.1s-.6.4-.8.8c-5.5 9.9-10.5 20.2-14.9 30.6-44.6-6.8-89.9-6.8-134.4 0-4.5-10.5-9.5-20.7-15.1-30.6-.2-.3-.5-.6-.8-.8s-.7-.2-1.1-.2C162.5 39 122.2 51.5 84.1 69c-.3.1-.6.4-.8.7C7.1 183.5-13.8 294.6-3.6 404.2c0 .3.1.5.2.8s.3.4.5.6c44.4 32.9 94 58 146.8 74.2.4.1.8.1 1.1 0s.7-.4.9-.7c11.3-15.4 21.4-31.8 30-48.8.1-.2.2-.5.2-.8s0-.5-.1-.8-.2-.5-.4-.6-.4-.3-.7-.4c-15.8-6.1-31.2-13.4-45.9-21.9-.3-.2-.5-.4-.7-.6s-.3-.6-.3-.9 0-.6.2-.9.3-.5.6-.7c3.1-2.3 6.2-4.7 9.1-7.1.3-.2.6-.4.9-.4s.7 0 1 .1c96.2 43.9 200.4 43.9 295.5 0 .3-.1.7-.2 1-.2s.7.2.9.4c2.9 2.4 6 4.9 9.1 7.2.2.2.4.4.6.7s.2.6.2.9-.1.6-.3.9-.4.5-.6.6c-14.7 8.6-30 15.9-45.9 21.8-.2.1-.5.2-.7.4s-.3.4-.4.7-.1.5-.1.8.1.5.2.8c8.8 17 18.8 33.3 30 48.8.2.3.6.6.9.7s.8.1 1.1 0c52.9-16.2 102.6-41.3 147.1-74.2.2-.2.4-.4.5-.6s.2-.5.2-.8c12.3-126.8-20.5-236.9-86.9-334.5zm-302 267.7c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.4 59.2-52.8 59.2m195.4 0c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.2 59.2-52.8 59.2" fill="currentColor"></path></svg>
+</a>
+<a class="md-social__link" href="https://x.com/fastapi" rel="noopener" target="_blank" title="x.com">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path d="M357.2 48h70.6L273.6 224.2 455 464H313L201.7 318.6 74.5 464H3.8l164.9-188.5L-5.2 48h145.6l100.5 132.9zm-24.8 373.8h39.1L119.1 88h-42z" fill="currentColor"></path></svg>
+</a>
+<a class="md-social__link" href="https://bsky.app/profile/fastapi.tiangolo.com" rel="noopener" target="_blank" title="bsky.app">
+<svg viewbox="0 0 576 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path d="M407.8 294.7c-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3M288 227.1c-26.1-50.7-97.1-145.2-163.1-191.8C61.6-9.4 37.5-1.7 21.6 5.5 3.3 13.8 0 41.9 0 58.4S9.1 194 15 213.9c19.5 65.7 89.1 87.9 153.2 80.7 3.3-.5 6.6-.9 10-1.4-3.3.5-6.6 1-10 1.4-93.9 14-177.3 48.2-67.9 169.9C220.6 589.1 265.1 437.8 288 361.1c22.9 76.7 49.2 222.5 185.6 103.4 102.4-103.4 28.1-156-65.8-169.9-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3 64.1 7.1 133.6-15.1 153.2-80.7C566.9 194 576 75 576 58.4s-3.3-44.7-21.6-52.9c-15.8-7.1-40-14.9-103.2 29.8C385.1 81.9 314.1 176.4 288 227.1" fill="currentColor"></path></svg>
+</a>
+<a class="md-social__link" href="https://www.linkedin.com/company/fastapi" rel="noopener" target="_blank" title="www.linkedin.com">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3M135.4 416H69V202.2h66.5V416zM102.2 96a38.5 38.5 0 1 1 0 77 38.5 38.5 0 1 1 0-77m282.1 320h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9z" fill="currentColor"></path></svg>
+</a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<div class="md-progress" data-md-component="progress" role="progressbar"></div>
+<script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["content.code.annotate","content.code.copy","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.indexes","navigation.instant","navigation.instant.prefetch","navigation.instant.progress","navigation.path","navigation.tabs","navigation.tabs.sticky","navigation.top","navigation.tracking","search.highlight","search.share","search.suggest","toc.follow"],"redirect":null,"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Kopyalandı","clipboard.copy":"Kopyala","search.result.more.one":"Bu sayfada 1 tane daha","search.result.more.other":"Bu sayfada # tane daha","search.result.none":"Eşleşen doküman bulunamadı","search.result.one":"1 doküman bulundu","search.result.other":"# doküman bulundu","search.result.placeholder":"Aramaya başlamak için yazın","search.result.term.missing":"Eksik","select.version":"Versiyon seç"},"version":null}</script>
+<script src="../../assets/javascripts/bundle.c04ba553.min.js"></script>
+<script src="/js/termynal.js"></script>
+<script src="/js/custom.js"></script>
+<script src="/js/init_kapa_widget.js"></script>
+<!-- Cloudflare Pages Analytics --><script data-cf-beacon='{"token": "83c63961621f43319d43d493c35d7611"}' defer="" src="https://static.cloudflareinsights.com/beacon.min.js"></script><!-- Cloudflare Pages Analytics --></body>
+</html>
