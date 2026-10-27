@@ -651,8 +651,20 @@ class HybridRAGPipeline:
 				await retr.index_async(lang_chunks)
 				self.language_retrievers[active_language] = retr
 
-		search_query = query
-		if conversation_history:
+		context_chunks = await self.search_async(
+			query=query,
+			top_k=top_k,
+			candidate_k=candidate_k,
+			rerank=rerank,
+			language=active_language,
+		)
+
+		top_score = (
+			float(context_chunks[0].get("rerank_score", 0.0))
+			if context_chunks and context_chunks[0].get("rerank_score") is not None
+			else 1.0
+		)
+		if conversation_history and top_score < 0.0:
 			recent_user_turns = [
 				m["content"].strip()
 				for m in conversation_history
@@ -662,15 +674,16 @@ class HybridRAGPipeline:
 			if prior_source_hints:
 				context_parts.append(" ".join(prior_source_hints))
 			context_parts.append(query)
-			search_query = " | ".join(context_parts)
-
-		context_chunks = await self.search_async(
-			query=search_query,
-			top_k=top_k,
-			candidate_k=candidate_k,
-			rerank=rerank,
-			language=active_language,
-		)
+			contextual_query = " | ".join(context_parts)
+			contextual_chunks = await self.search_async(
+				query=contextual_query,
+				top_k=top_k,
+				candidate_k=candidate_k,
+				rerank=rerank,
+				language=active_language,
+			)
+			if contextual_chunks:
+				context_chunks = contextual_chunks
 
 		llm_answer = await self.generator.generate_with_history(
 			query=query,

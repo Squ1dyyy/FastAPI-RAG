@@ -231,24 +231,25 @@ class LLMGenerator(BaseGenerator):
 			lang_hint = f"\nSelected documentation language: {lang_label}. Respond in the language of the user's question."
 
 		user_prompt = (
+			f"CURRENT USER QUESTION:\n{query}\n\n"
 			f"FastAPI Reference Context:\n{formatted_context}{lang_hint}\n\n"
-			f"User Question:\n{query}\n\n"
 			"Instructions:\n"
-			"1. Use ONLY the information explicitly present in the FastAPI Reference Context above.\n"
-			"2. Do NOT use any prior or external knowledge outside the provided context.\n"
-			"3. MANDATORY: If the FastAPI Reference Context contains any code snippets or signatures (```python ... ```), you MUST include at least one verbatim code block (especially full usage examples if present) from the context in your response.\n"
-			"4. If the context does not contain the answer, clearly state that the retrieved documentation does not cover this.\n"
+			f"1. Answer ONLY the CURRENT USER QUESTION ('{query}') using exclusively the FastAPI Reference Context above.\n"
+			"2. Use prior conversation history ONLY if the current question is a direct follow-up (such as asking for an example or clarification of the previous topic). If the current question is about a new topic, completely ignore previous topics.\n"
+			"3. Do NOT use any external knowledge outside the provided context.\n"
+			"4. MANDATORY: If the FastAPI Reference Context contains any code snippets or signatures (```python ... ```), you MUST include at least one verbatim code block (especially full usage examples if present) from the context in your response.\n"
 			"5. Format the answer in clean Markdown and cite the exact documentation URLs from the context."
 		)
 		messages: List[Dict[str, str]] = [
 			{"role": "system", "content": self.system_prompt}
 		]
 		if history:
-			for msg in history[-config.chat_history_limit :]:
+			for msg in history[-4:]:
 				role = msg.get("role", "")
 				content = msg.get("content", "")
 				if role in ("user", "assistant") and content:
-					messages.append({"role": role, "content": content})
+					trimmed = content[:600] + "..." if role == "assistant" and len(content) > 600 else content
+					messages.append({"role": role, "content": trimmed})
 		messages.append({"role": "user", "content": user_prompt})
 		return messages
 
