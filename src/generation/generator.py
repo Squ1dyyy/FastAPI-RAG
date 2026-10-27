@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from curl_cffi import AsyncSession
+from openai import AsyncOpenAI
 
 from configs.config import config
 
@@ -15,8 +15,8 @@ class BaseGenerator(ABC):
 		pass
 
 
-class OpenRouterGenerator(BaseGenerator):
-	"""Asynchronous RAG response generator powered by the OpenRouter Chat Completions API."""
+class LLMGenerator(BaseGenerator):
+	"""Asynchronous RAG response generator using `AsyncOpenAI` for any OpenAI-compatible provider."""
 
 	def __init__(
 		self,
@@ -26,21 +26,34 @@ class OpenRouterGenerator(BaseGenerator):
 		temperature: Optional[float] = None,
 		max_tokens: Optional[int] = None,
 		timeout: Optional[float] = None,
-		site_url: Optional[str] = None,
-		app_name: Optional[str] = None,
 		system_prompt: Optional[str] = None,
 	):
-		self.api_key = api_key if api_key is not None else config.openrouter_api_key
-		self.base_url = (base_url or config.openrouter_base_url).rstrip("/")
-		self.model = model or config.openrouter_model
+		self.api_key = api_key if api_key is not None else config.llm_api_key
+		self.base_url = (base_url or config.llm_base_url).rstrip("/")
+		self.model = model or config.llm_model
 		self.temperature = (
-			temperature if temperature is not None else config.openrouter_temperature
+			temperature if temperature is not None else config.llm_temperature
 		)
-		self.max_tokens = max_tokens if max_tokens is not None else config.openrouter_max_tokens
-		self.timeout = timeout if timeout is not None else config.openrouter_timeout
-		self.site_url = site_url or config.openrouter_site_url
-		self.app_name = app_name or config.openrouter_app_name
+		self.max_tokens = max_tokens if max_tokens is not None else config.llm_max_tokens
+		self.timeout = timeout if timeout is not None else config.llm_timeout
 		self.system_prompt = system_prompt or config.rag_system_prompt
+		self._client: Optional[AsyncOpenAI] = None
+
+	@property
+	def client(self) -> AsyncOpenAI:
+		"""Lazy-initialize AsyncOpenAI client."""
+		if self._client is None:
+			if not self.api_key or self.api_key == "your_api_key_here":
+				raise ValueError(
+					"LLM_API_KEY is not configured in .env. "
+					"Set a valid API key for your LLM provider."
+				)
+			self._client = AsyncOpenAI(
+				api_key=self.api_key,
+				base_url=self.base_url,
+				timeout=self.timeout,
+			)
+		return self._client
 
 	@staticmethod
 	def format_context(context: List[Dict[str, Any]]) -> str:
@@ -76,7 +89,7 @@ class OpenRouterGenerator(BaseGenerator):
 	def build_messages(
 		self, query: str, context: List[Dict[str, Any]]
 	) -> List[Dict[str, str]]:
-		"""Construct system and user messages for the OpenRouter Chat Completions API."""
+		"""Construct system and user messages for chat completion."""
 		formatted_context = self.format_context(context)
 		user_prompt = (
 			f"FastAPI Reference Context:\n{formatted_context}\n\n"
@@ -89,58 +102,37 @@ class OpenRouterGenerator(BaseGenerator):
 			{"role": "user", "content": user_prompt},
 		]
 
-	def _build_headers(self) -> Dict[str, str]:
-		"""Construct HTTP headers required by OpenRouter."""
-		headers = {
-			"Authorization": f"Bearer {self.api_key}",
-			"Content-Type": "application/json",
-		}
-		if self.site_url:
-			headers["HTTP-Referer"] = self.site_url
-		if self.app_name:
-			headers["X-Title"] = self.app_name
-		return headers
-
 	async def generate(
 		self,
 		query: str,
 		context: List[Dict[str, Any]],
-		session: Optional[AsyncSession] = None,
 	) -> str:
-		"""Asynchronously generate an answer from OpenRouter using retrieved context."""
-		if not self.api_key or self.api_key == "your_openrouter_api_key_here":
-			raise ValueError(
-				"OPENROUTER_API_KEY is not configured in .env. "
-				"Set a valid OpenRouter API key to generate LLM responses."
-			)
+		"""Asynchronously generate an answer via AsyncOpenAI chat completions."""
+		response = await self.client.chat.completions.create(
+			model=self.model,
+			messages=self.build_messages(query, context),
+			temperature=self.temperature,
+			max_tokens=self.max_tokens,
+		)
+		content = response.choices[0].message.content
+		return content.strip() if content else ""
 
-		endpoint = f"{self.base_url}/chat/completions"
-		payload = {
-			"model": self.model,
-			"messages": self.build_messages(query, context),
-			"temperature": self.temperature,
-			"max_tokens": self.max_tokens,
-		}
-		headers = self._build_headers()
+	async def generate_stream(
+		self,
+		query: str,
+		context: List[Dict[str, Any]],
+	) -> AsyncGenerator[str, None]:
+		"""Asynchronously stream response tokens via AsyncOpenAI chat completions."""
+		stream = await self.client.chat.completions.create(
+			model=self.model,
+			messages=self.build_messages(query, context),
+			temperature=self.temperature,
+			max_tokens=self.max_tokens,
+			stream=True,
+		)
+		async for chunk in stream:
+			if chunk.choices and chunk.choices[0].delta.content:
+				yield chunk.choices[0].delta.content
 
-		if session is not None:
-			res = await session.post(
-				endpoint,
-				json=payload,
-				headers=headers,
-				timeout=self.timeout,
-			)
-			res.raise_for_status()
-			data = res.json()
-			return data["choices"][0]["message"]["content"].strip()
 
-		async with AsyncSession() as local_session:
-			res = await local_session.post(
-				endpoint,
-				json=payload,
-				headers=headers,
-				timeout=self.timeout,
-			)
-			res.raise_for_status()
-			data = res.json()
-			return data["choices"][0]["message"]["content"].strip()
+OpenAIGenerator = LLMGenerator

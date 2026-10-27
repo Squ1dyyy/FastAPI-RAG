@@ -1,4 +1,4 @@
-"""Asynchronous GPU-accelerated Hybrid RAG demo with BM25-Fast, E5-small, TinyBERT Reranker, and OpenRouter."""
+"""Asynchronous GPU-accelerated Hybrid RAG demo with BM25-Fast, E5-small, TinyBERT Reranker, and AsyncOpenAI."""
 import asyncio
 import sys
 from pathlib import Path
@@ -28,17 +28,17 @@ async def main():
 		"APIRouter include_router prefix and tags parameters",
 	]
 
-	has_openrouter_key = bool(
-		config.openrouter_api_key
-		and config.openrouter_api_key != "your_openrouter_api_key_here"
+	has_llm_key = bool(
+		config.llm_api_key
+		and config.llm_api_key != "your_api_key_here"
 	)
 
 	for q in queries:
 		print(f"\n==========================================")
 		print(f"Query: '{q}'")
-		if has_openrouter_key:
+		if has_llm_key:
 			rag_result = await pipeline.answer(q, top_k=3)
-			print(f"\n[OpenRouter Answer ({config.openrouter_model})]:\n{rag_result['answer']}")
+			print(f"\n[LLM Answer ({config.llm_model})]:\n{rag_result['answer']}")
 			print(f"Metrics: {rag_result['metrics']} | Latency: {rag_result['latency_seconds']}s")
 			results = rag_result["context"]
 		else:

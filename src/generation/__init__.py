@@ -1,3 +1,3 @@
-from .generator import BaseGenerator, OpenRouterGenerator
+from .generator import BaseGenerator, LLMGenerator, OpenAIGenerator
 
-__all__ = ["BaseGenerator", "OpenRouterGenerator"]
+__all__ = ["BaseGenerator", "LLMGenerator", "OpenAIGenerator"]

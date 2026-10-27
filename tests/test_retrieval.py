@@ -2,7 +2,7 @@ import unittest
 from typing import Any, Dict, List
 from src.embeddings.embedder import BaseEmbedder
 from src.evaluation import RAGEvaluator
-from src.generation import BaseGenerator, OpenRouterGenerator
+from src.generation import BaseGenerator, LLMGenerator
 from src.pipeline import HybridRAGPipeline
 from src.reranking import BaseReranker
 from src.retrieval import BM25Retriever, DenseRetriever, HybridRetriever
@@ -104,12 +104,13 @@ class TestHybridRetrievalAndAsyncRAG(unittest.IsolatedAsyncioTestCase):
 		self.assertGreater(len(results), 0)
 		self.assertEqual(results[0]["id"], "doc3")
 
-	async def test_openrouter_prompt_and_async_rag_pipeline(self):
-		openrouter = OpenRouterGenerator(api_key="test_key", model="openai/gpt-4o-mini")
-		messages = openrouter.build_messages("How to use APIRouter?", self.corpus[:2])
+	async def test_llm_generator_prompt_and_async_rag_pipeline(self):
+		llm_gen = LLMGenerator(api_key="test_key", base_url="https://api.openai.com/v1", model="gpt-4o-mini")
+		messages = llm_gen.build_messages("How to use APIRouter?", self.corpus[:2])
 		self.assertEqual(len(messages), 2)
 		self.assertEqual(messages[0]["role"], "system")
 		self.assertIn("APIRouter", messages[1]["content"])
+		self.assertIsNotNone(llm_gen.client)
 
 		pipeline = HybridRAGPipeline(
 			embedder=DummyEmbedder(),

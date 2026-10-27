@@ -9,14 +9,14 @@ from configs.config import config
 from src.database.repository import DocumentRepository, QueryLogRepository
 from src.embeddings import BaseEmbedder, MultilingualE5Embedder
 from src.evaluation import BaseEvaluator, RAGEvaluator
-from src.generation import BaseGenerator, OpenRouterGenerator
+from src.generation import BaseGenerator, LLMGenerator
 from src.preprocessing import FastAPIHTMLParser
 from src.reranking import BaseReranker, CrossEncoderReranker
 from src.retrieval import BM25Retriever, DenseRetriever, HybridRetriever
 
 
 class HybridRAGPipeline:
-	"""Asynchronous GPU-accelerated Hybrid RAG pipeline with OpenRouter generation."""
+	"""Asynchronous GPU-accelerated Hybrid RAG pipeline with OpenAI-compatible LLM generation."""
 
 	def __init__(
 		self,
@@ -44,7 +44,7 @@ class HybridRAGPipeline:
 		self.reranker = reranker or (
 			CrossEncoderReranker(device=target_device) if self.use_reranker else None
 		)
-		self.generator = generator or OpenRouterGenerator()
+		self.generator = generator or LLMGenerator()
 		self.evaluator = evaluator or RAGEvaluator()
 		self.corpus: List[Dict[str, Any]] = []
 

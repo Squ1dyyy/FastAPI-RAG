@@ -47,14 +47,12 @@ class Config(BaseSettings):
 	reranker_batch_size: int = 32
 	use_reranker: bool = True
 
-	openrouter_api_key: str = ""
-	openrouter_base_url: str = "https://openrouter.ai/api/v1"
-	openrouter_model: str = "openai/gpt-4o-mini"
-	openrouter_temperature: float = 0.2
-	openrouter_max_tokens: int = 1024
-	openrouter_timeout: float = 60.0
-	openrouter_site_url: str = "https://github.com/Squ1dyyy/FastAPI-RAG"
-	openrouter_app_name: str = "FastAPI-Hybrid-RAG"
+	llm_api_key: str = ""
+	llm_base_url: str = "https://openrouter.ai/api/v1"
+	llm_model: str = "openai/gpt-4o-mini"
+	llm_temperature: float = 0.2
+	llm_max_tokens: int = 1024
+	llm_timeout: float = 60.0
 	rag_system_prompt: str = (
 		"You are an expert FastAPI assistant. Answer the user's question accurately "
 		"using ONLY the provided FastAPI reference documentation context. "

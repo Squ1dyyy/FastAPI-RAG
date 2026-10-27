@@ -13,3 +13,4 @@ numpy>=1.24.0
 scipy>=1.11.0
 torch>=2.6.0
 sentence-transformers>=3.0.0
+openai>=1.0.0
