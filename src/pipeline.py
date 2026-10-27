@@ -350,8 +350,9 @@ class HybridRAGPipeline:
 		self,
 		results: List[Dict[str, Any]],
 		language: Optional[str] = None,
+		candidate_pool: Optional[List[Dict[str, Any]]] = None,
 	) -> List[Dict[str, Any]]:
-		"""Expand child h3/h4 chunks by attaching their parent h2 class/function chunk context."""
+		"""Perform 2-level DOM Tree LCA Graph Expansion (h3 -> parent h2, and h1 -> all child h2 sections)."""
 		if not results:
 			return results
 
@@ -362,6 +363,9 @@ class HybridRAGPipeline:
 
 		by_doc_anchor: Dict[tuple[str, str], Dict[str, Any]] = {}
 		by_doc_crumb: Dict[tuple[str, str], Dict[str, Any]] = {}
+		doc_h2_chunks: Dict[str, List[Dict[str, Any]]] = {}
+		doc_h1_chunk: Dict[str, Dict[str, Any]] = {}
+
 		for ch in active_corpus:
 			meta = ch.get("metadata", {})
 			sub_idx = meta.get("sub_chunk_index")
@@ -370,17 +374,38 @@ class HybridRAGPipeline:
 			doc_key = ch.get("doc_url") or meta.get("doc_url") or ch.get("doc_title") or ""
 			anc = ch.get("anchor") or meta.get("anchor") or ""
 			crumb = ch.get("breadcrumb") or meta.get("breadcrumb") or ""
+			sym_type = ch.get("symbol_type") or meta.get("symbol_type") or ""
+			h_level = meta.get("heading_level")
+
 			if anc and (doc_key, anc) not in by_doc_anchor:
 				by_doc_anchor[(doc_key, anc)] = ch
 			if crumb and (doc_key, crumb) not in by_doc_crumb:
 				by_doc_crumb[(doc_key, crumb)] = ch
 
-		expanded_list: List[Dict[str, Any]] = []
-		for item in results:
+			crumb_parts = [p.strip() for p in crumb.split(" > ") if p.strip()]
+			if sym_type == "overview" or h_level == 1 or len(crumb_parts) == 1:
+				if doc_key and doc_key not in doc_h1_chunk:
+					doc_h1_chunk[doc_key] = ch
+			elif h_level == 2 or len(crumb_parts) == 2:
+				if doc_key:
+					existing_list = doc_h2_chunks.setdefault(doc_key, [])
+					if not any(x.get("anchor") == anc and anc for x in existing_list):
+						existing_list.append(ch)
+
+		def _resolve_h2_branch(item: Dict[str, Any]) -> tuple[str, Optional[Dict[str, Any]], bool]:
 			meta = item.get("metadata", {})
 			doc_key = item.get("doc_url") or meta.get("doc_url") or item.get("doc_title") or ""
 			anchor = item.get("anchor") or meta.get("anchor") or ""
 			crumb = item.get("breadcrumb") or meta.get("breadcrumb") or ""
+			sym_type = item.get("symbol_type") or meta.get("symbol_type") or ""
+			h_level = meta.get("heading_level")
+			crumb_parts = [p.strip() for p in crumb.split(" > ") if p.strip()]
+
+			if sym_type == "overview" or h_level == 1 or len(crumb_parts) == 1:
+				return doc_key, None, True
+
+			if h_level == 2 or len(crumb_parts) == 2:
+				return doc_key, item, False
 
 			parent_chunk: Optional[Dict[str, Any]] = None
 			explicit_parent = meta.get("parent_anchor", "")
@@ -395,11 +420,74 @@ class HybridRAGPipeline:
 					cand_anc = anchor.rsplit(".", 1)[0]
 					parent_chunk = by_doc_anchor.get((doc_key, cand_anc))
 
-			if parent_chunk is None and " > " in crumb:
-				parts = [p.strip() for p in crumb.split(" > ") if p.strip()]
-				if len(parts) >= 3:
-					h2_crumb = " > ".join(parts[:2])
-					parent_chunk = by_doc_crumb.get((doc_key, h2_crumb))
+			if parent_chunk is None and len(crumb_parts) >= 3:
+				h2_crumb = " > ".join(crumb_parts[:2])
+				parent_chunk = by_doc_crumb.get((doc_key, h2_crumb))
+
+			return doc_key, parent_chunk, False
+
+		doc_activated_h2s: Dict[str, set[str]] = {}
+		doc_h1_hit: set[str] = set()
+		for item in results:
+			d_key, h2_node, is_h1 = _resolve_h2_branch(item)
+			if not d_key:
+				continue
+			if is_h1:
+				doc_h1_hit.add(d_key)
+			elif h2_node is not None:
+				h2_id = h2_node.get("anchor") or h2_node.get("breadcrumb") or h2_node.get("id", "")
+				if h2_id:
+					doc_activated_h2s.setdefault(d_key, set()).add(h2_id)
+
+		h1_expanded_docs: set[str] = set()
+		for d_key in set(list(doc_activated_h2s.keys()) + list(doc_h1_hit)):
+			distinct_h2_count = len(doc_activated_h2s.get(d_key, set()))
+			if (d_key in doc_h1_hit or distinct_h2_count >= 2) and d_key in doc_h2_chunks:
+				h1_expanded_docs.add(d_key)
+
+		expanded_list: List[Dict[str, Any]] = []
+		seen_chunk_ids: set[str] = set()
+		emitted_h1_docs: set[str] = set()
+
+		for item in results:
+			d_key, parent_chunk, is_h1 = _resolve_h2_branch(item)
+
+			if d_key in h1_expanded_docs:
+				if d_key in emitted_h1_docs:
+					continue
+				emitted_h1_docs.add(d_key)
+				base_score = item.get("rerank_score")
+				base_hybrid = item.get("hybrid_score")
+				h1_node = doc_h1_chunk.get(d_key)
+				all_h2s = doc_h2_chunks.get(d_key, [])
+
+				if h1_node is not None and len(all_h2s) > 0:
+					hub_item = dict(h1_node)
+					h2_blocks = [h1_node.get("text", "").strip()]
+					for sib in all_h2s[:10]:
+						sib_txt = sib.get("text", "").strip()
+						if sib_txt:
+							h2_blocks.append(sib_txt)
+					hub_item["text"] = "\n\n".join(b for b in h2_blocks if b)
+					hub_item["rerank_score"] = base_score
+					hub_item["hybrid_score"] = base_hybrid
+					hub_item["lca_level"] = "h1"
+					hub_item["small_to_big"] = True
+					expanded_list.append(hub_item)
+					seen_chunk_ids.add(str(hub_item.get("id")))
+
+				for sib in all_h2s[:8]:
+					sib_id = str(sib.get("id"))
+					if sib_id in seen_chunk_ids:
+						continue
+					seen_chunk_ids.add(sib_id)
+					sib_copy = dict(sib)
+					sib_copy["rerank_score"] = base_score
+					sib_copy["hybrid_score"] = base_hybrid
+					sib_copy["lca_level"] = "h1_child_h2"
+					sib_copy["small_to_big"] = True
+					expanded_list.append(sib_copy)
+				continue
 
 			if (
 				parent_chunk is not None
@@ -414,6 +502,7 @@ class HybridRAGPipeline:
 				enriched["parent_anchor"] = parent_chunk.get("anchor", "")
 				enriched["parent_section_title"] = parent_chunk.get("section_title", "")
 				enriched["parent_section_url"] = parent_chunk.get("section_url", "")
+				enriched["lca_level"] = "h2"
 				enriched["small_to_big"] = True
 				expanded_list.append(enriched)
 			else:

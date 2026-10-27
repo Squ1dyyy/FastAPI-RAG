@@ -355,6 +355,18 @@ class FastAPIHTMLParser:
 		_walk_dom(cleaned_root)
 		_flush_current()
 
+		h2_summaries: List[str] = []
+		for sec in sections:
+			if sec.get("heading_level") == 2:
+				sig = f" `{sec['signature']}`" if sec.get("signature") else ""
+				h2_summaries.append(f"- {sec['section_title']}{sig} ({sec['section_url']})")
+
+		if sections and sections[0].get("symbol_type") == "overview" and h2_summaries:
+			sections[0]["text"] = (
+				f"{sections[0]['text']}\n\nIncluded Sections (h2):\n"
+				+ "\n".join(h2_summaries)
+			)
+
 		chunks: List[Dict[str, Any]] = []
 		for sec in sections:
 			header_prefix = f"[{sec['breadcrumb']}]\n"

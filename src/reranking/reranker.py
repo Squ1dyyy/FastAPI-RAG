@@ -71,19 +71,29 @@ class CrossEncoderReranker(BaseReranker):
 			return []
 
 		pairs = [(query, doc.get("text", "")) for doc in documents]
-		scores = self.model.predict(
-			pairs,
-			batch_size=self.batch_size,
-			show_progress_bar=False,
-		)
+		scores = [
+			float(s)
+			for s in self.model.predict(
+				pairs,
+				batch_size=self.batch_size,
+				show_progress_bar=False,
+			)
+		]
+
+		max_ce = max(scores) if scores else 0.0
+		low_ce_confidence = max_ce < -3.0
 
 		reranked = []
 		for idx, (doc, score) in enumerate(zip(documents, scores), start=1):
 			item = dict(doc)
 			item["pre_rerank_rank"] = idx
-			item["rerank_score"] = float(score)
-			item["score"] = float(score)
+			item["rerank_score"] = score
+			if low_ce_confidence:
+				hybrid_prior = float(doc.get("hybrid_score") or doc.get("score") or (1.0 / idx))
+				item["score"] = hybrid_prior + (score * 1e-4)
+			else:
+				item["score"] = score
 			reranked.append(item)
 
-		reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
+		reranked.sort(key=lambda x: x["score"], reverse=True)
 		return reranked[:top_k]

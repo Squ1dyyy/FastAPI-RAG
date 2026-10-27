@@ -217,6 +217,85 @@ class TestHybridRetrievalAndAsyncRAG(unittest.IsolatedAsyncioTestCase):
 		self.assertIn("GZipMiddleware(app, minimum_size=500, compresslevel=9)", expanded[0]["text"])
 		self.assertIn("compresslevel = compresslevel", expanded[0]["text"])
 
+	def test_lca_h1_graph_expansion_returns_all_h2_sections(self):
+		pipeline = HybridRAGPipeline(
+			embedder=DummyEmbedder(),
+			reranker=DummyReranker(),
+			generator=DummyGenerator(),
+			evaluator=RAGEvaluator(),
+		)
+		doc_url = "https://fastapi.tiangolo.com/reference/middleware/"
+		h1_overview = {
+			"id": "mw_h1",
+			"doc_title": "Middleware",
+			"doc_url": doc_url,
+			"section_title": "Middleware",
+			"anchor": "middleware",
+			"breadcrumb": "Middleware",
+			"symbol_type": "overview",
+			"section_url": f"{doc_url}#middleware",
+			"text": "# Middleware\nSeveral middlewares are available in FastAPI.",
+			"metadata": {"heading_level": 1},
+		}
+		h2_cors = {
+			"id": "mw_cors",
+			"doc_title": "Middleware",
+			"doc_url": doc_url,
+			"section_title": "CORSMiddleware",
+			"anchor": "fastapi.middleware.cors.CORSMiddleware",
+			"breadcrumb": "Middleware > CORSMiddleware",
+			"symbol_type": "class",
+			"section_url": f"{doc_url}#fastapi.middleware.cors.CORSMiddleware",
+			"text": "## CORSMiddleware\nCORSMiddleware(app, allow_origins=...)",
+			"metadata": {"heading_level": 2},
+		}
+		h2_gzip = {
+			"id": "mw_gzip",
+			"doc_title": "Middleware",
+			"doc_url": doc_url,
+			"section_title": "GZipMiddleware",
+			"anchor": "fastapi.middleware.gzip.GZipMiddleware",
+			"breadcrumb": "Middleware > GZipMiddleware",
+			"symbol_type": "class",
+			"section_url": f"{doc_url}#fastapi.middleware.gzip.GZipMiddleware",
+			"text": "## GZipMiddleware\nGZipMiddleware(app, minimum_size=500, compresslevel=9)",
+			"metadata": {"heading_level": 2},
+		}
+		h3_gzip_attr = {
+			"id": "mw_gzip_attr",
+			"doc_title": "Middleware",
+			"doc_url": doc_url,
+			"section_title": "compresslevel",
+			"anchor": "fastapi.middleware.gzip.GZipMiddleware.compresslevel",
+			"breadcrumb": "Middleware > GZipMiddleware > compresslevel",
+			"symbol_type": "attribute",
+			"section_url": f"{doc_url}#fastapi.middleware.gzip.GZipMiddleware.compresslevel",
+			"text": "## compresslevel\ncompresslevel = compresslevel",
+			"metadata": {"heading_level": 3, "parent_anchor": "fastapi.middleware.gzip.GZipMiddleware"},
+		}
+		h2_trusted = {
+			"id": "mw_trusted",
+			"doc_title": "Middleware",
+			"doc_url": doc_url,
+			"section_title": "TrustedHostMiddleware",
+			"anchor": "fastapi.middleware.trustedhost.TrustedHostMiddleware",
+			"breadcrumb": "Middleware > TrustedHostMiddleware",
+			"symbol_type": "class",
+			"section_url": f"{doc_url}#fastapi.middleware.trustedhost.TrustedHostMiddleware",
+			"text": "## TrustedHostMiddleware\nTrustedHostMiddleware(app, allowed_hosts=None)",
+			"metadata": {"heading_level": 2},
+		}
+		pipeline.corpus = [h1_overview, h2_cors, h2_gzip, h3_gzip_attr, h2_trusted]
+
+		expanded = pipeline.expand_small_to_big([h3_gzip_attr, h2_gzip, h2_trusted])
+		self.assertEqual(expanded[0].get("lca_level"), "h1")
+		self.assertIn("CORSMiddleware", expanded[0]["text"])
+		self.assertIn("GZipMiddleware", expanded[0]["text"])
+		self.assertIn("TrustedHostMiddleware", expanded[0]["text"])
+		section_titles = [c.get("section_title") for c in expanded]
+		self.assertIn("CORSMiddleware", section_titles)
+		self.assertNotIn("compresslevel", section_titles)
+
 	async def test_rag_evaluator_metrics_and_ground_truth_f1(self):
 		evaluator = RAGEvaluator()
 		metrics = await evaluator.evaluate(
