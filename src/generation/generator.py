@@ -1,9 +1,10 @@
+import re
 from abc import ABC, abstractmethod
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from openai import AsyncOpenAI
 
-from configs.config import config
+from configs.config import Config, config
 
 
 class BaseGenerator(ABC):
@@ -37,6 +38,7 @@ class LLMGenerator(BaseGenerator):
 		timeout: Optional[float] = None,
 		system_prompt: Optional[str] = None,
 	):
+		self._explicit_api_key = api_key
 		self.api_key = api_key if api_key is not None else config.llm_api_key
 		self.base_url = (base_url or config.llm_base_url).rstrip("/")
 		self.model = model or config.llm_model
@@ -50,6 +52,15 @@ class LLMGenerator(BaseGenerator):
 
 	def has_valid_api_key(self) -> bool:
 		"""Return True when a non-placeholder LLM API key is configured."""
+		if self._explicit_api_key is None and (
+			not self.api_key or self.api_key == "your_api_key_here"
+		):
+			fresh_cfg = Config()
+			if fresh_cfg.llm_api_key and fresh_cfg.llm_api_key != "your_api_key_here":
+				self.api_key = fresh_cfg.llm_api_key
+				self.base_url = fresh_cfg.llm_base_url.rstrip("/")
+				self.model = fresh_cfg.llm_model
+				self._client = None
 		return bool(self.api_key and self.api_key != "your_api_key_here")
 
 	@property
@@ -67,6 +78,24 @@ class LLMGenerator(BaseGenerator):
 				timeout=self.timeout,
 			)
 		return self._client
+
+	@staticmethod
+	def clean_chunk_text(raw_text: str) -> str:
+		"""Strip internal indexing prefixes and source-code footer tags from chunk text."""
+		lines = raw_text.strip().splitlines()
+		cleaned: List[str] = []
+		for idx, line in enumerate(lines):
+			stripped = line.strip()
+			if idx == 0 and stripped.startswith("[") and stripped.endswith("]"):
+				continue
+			if stripped.startswith("[Source code in ") and stripped.endswith("]"):
+				continue
+			if re.match(r"^#{1,6}\s+", stripped):
+				heading_text = re.sub(r"^#{1,6}\s+", "", stripped)
+				cleaned.append(f"**{heading_text}**")
+			else:
+				cleaned.append(line)
+		return "\n".join(cleaned).strip()
 
 	@staticmethod
 	def format_context(context: List[Dict[str, Any]]) -> str:
@@ -90,7 +119,7 @@ class LLMGenerator(BaseGenerator):
 				or ""
 			)
 			sym_type = chunk.get("symbol_type") or meta.get("symbol_type") or "section"
-			text = chunk.get("text", "").strip()
+			text = LLMGenerator.clean_chunk_text(chunk.get("text", ""))
 			blocks.append(
 				f"--- Source [{idx}] ---\n"
 				f"Section: {breadcrumb} ({sym_type})\n"
@@ -101,13 +130,11 @@ class LLMGenerator(BaseGenerator):
 
 	@staticmethod
 	def format_extractive_fallback(query: str, context: List[Dict[str, Any]]) -> str:
-		"""Build a structured documentation answer from top retrieved chunks when LLM_API_KEY is unset."""
+		"""Build a clean, readable documentation answer from top reranked chunks when LLM_API_KEY is unset."""
 		if not context:
-			return f"No relevant FastAPI reference sections found for: '{query}'."
+			return f"По запросу «{query}» ничего не найдено в документации FastAPI."
 
-		parts = [
-			"*(Note: `LLM_API_KEY` is not set in `.env`; showing top reranked FastAPI reference sections)*\n"
-		]
+		sections: List[str] = []
 		for idx, chunk in enumerate(context[:3], start=1):
 			meta = chunk.get("metadata", {})
 			breadcrumb = (
@@ -122,9 +149,13 @@ class LLMGenerator(BaseGenerator):
 				or chunk.get("doc_url")
 				or ""
 			)
-			text = chunk.get("text", "").strip()
-			parts.append(f"### {idx}. {breadcrumb}\n**URL:** {sec_url}\n\n{text}")
-		return "\n\n---\n\n".join(parts)
+			body = LLMGenerator.clean_chunk_text(chunk.get("text", ""))
+			header = f"### {idx}. {breadcrumb}"
+			if sec_url:
+				header += f"\n[Открыть в документации]({sec_url})"
+			sections.append(f"{header}\n\n{body}")
+
+		return "\n\n---\n\n".join(sections)
 
 	def build_messages(
 		self,

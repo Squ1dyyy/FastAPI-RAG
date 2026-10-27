@@ -1,4 +1,4 @@
-"""Single-page HTML/JS interface for the FastAPI Hybrid RAG Chat with sessions."""
+"""Single-page HTML/JS interface for the FastAPI Hybrid RAG Chat with sessions and Markdown rendering."""
 
 CHAT_HTML = """<!DOCTYPE html>
 <html lang="ru">
@@ -106,40 +106,120 @@ body {
 	padding: 24px;
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 18px;
 }
 .message {
-	max-width: 820px;
-	padding: 14px 18px;
+	max-width: 860px;
+	padding: 16px 20px;
 	border-radius: 12px;
-	line-height: 1.55;
-	white-space: pre-wrap;
+	line-height: 1.6;
 	word-wrap: break-word;
 }
 .message.user {
 	align-self: flex-end;
 	background: rgb(3, 105, 161);
 	color: white;
+	white-space: pre-wrap;
 }
 .message.assistant {
 	align-self: flex-start;
 	background: rgb(30, 41, 59);
 	border: 1px solid rgb(51, 65, 85);
+	width: 100%;
 }
-.sources {
-	margin-top: 12px;
-	padding-top: 10px;
+.md-content h1, .md-content h2, .md-content h3 {
+	color: rgb(125, 211, 252);
+	margin: 12px 0 6px 0;
+	font-weight: 600;
+}
+.md-content h3 { font-size: 16px; }
+.md-content h2 { font-size: 17px; }
+.md-content p { margin: 8px 0; }
+.md-content ul { margin: 8px 0 8px 22px; }
+.md-content li { margin: 4px 0; }
+.md-content hr {
+	border: none;
 	border-top: 1px solid rgb(51, 65, 85);
-	font-size: 12px;
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
+	margin: 16px 0;
 }
-.source-link {
+.md-content a {
 	color: rgb(56, 189, 248);
 	text-decoration: none;
+	font-weight: 500;
 }
-.source-link:hover { text-decoration: underline; }
+.md-content a:hover { text-decoration: underline; }
+.inline-code {
+	background: rgb(15, 23, 42);
+	color: rgb(248, 250, 252);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-family: Consolas, Monaco, monospace;
+	font-size: 13px;
+	border: 1px solid rgb(51, 65, 85);
+}
+.code-block {
+	margin: 10px 0;
+	background: rgb(15, 23, 42);
+	border: 1px solid rgb(51, 65, 85);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.code-header {
+	background: rgb(22, 32, 50);
+	padding: 6px 12px;
+	font-size: 11px;
+	color: rgb(148, 163, 184);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	border-bottom: 1px solid rgb(51, 65, 85);
+}
+.code-block pre {
+	padding: 12px 14px;
+	overflow-x: auto;
+	font-family: Consolas, Monaco, monospace;
+	font-size: 13.5px;
+	line-height: 1.5;
+	color: rgb(226, 232, 240);
+}
+.sources {
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top: 1px solid rgb(51, 65, 85);
+	font-size: 12.5px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.sources-title {
+	color: rgb(148, 163, 184);
+	font-weight: 600;
+	margin-bottom: 2px;
+}
+.source-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.source-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: rgb(15, 23, 42);
+	border: 1px solid rgb(51, 65, 85);
+	padding: 5px 10px;
+	border-radius: 6px;
+	color: rgb(56, 189, 248);
+	text-decoration: none;
+	font-size: 12px;
+}
+.source-link:hover {
+	border-color: rgb(56, 189, 248);
+	background: rgb(23, 37, 84);
+}
+.score-pill {
+	color: rgb(148, 163, 184);
+	font-size: 11px;
+}
 .input-bar {
 	padding: 16px 24px;
 	background: rgb(30, 41, 59);
@@ -191,6 +271,117 @@ body {
 </div>
 <script>
 let activeSessionId = null;
+
+function escapeHtml(str) {
+	return String(str)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+}
+
+function formatInlineMarkdown(text) {
+	let s = escapeHtml(text);
+	s = s.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+	s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+	s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+	s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+	s = s.replace(/(^|\s)(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank">$2</a>');
+	return s;
+}
+
+function renderMarkdown(rawMd) {
+	if (!rawMd) return '';
+	const codeBlocks = [];
+	let text = String(rawMd).replace(/\r\n/g, '\n');
+
+	text = text.replace(/^\*\(Note:.*?LLM_API_KEY.*?\)\*\s*/i, '');
+
+	text = text.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+		const idx = codeBlocks.length;
+		const label = lang || 'python';
+		codeBlocks.push(
+			`<div class="code-block"><div class="code-header">${escapeHtml(label)}</div><pre><code>${escapeHtml(code.trim())}</code></pre></div>`
+		);
+		return `@@CODEBLOCK_${idx}@@`;
+	});
+
+	const lines = text.split('\n');
+	const htmlParts = [];
+	let inList = false;
+
+	for (let i = 0; i < lines.length; i++) {
+		const rawLine = lines[i];
+		const trimmed = rawLine.trim();
+
+		if (!trimmed) {
+			if (inList) {
+				htmlParts.push('</ul>');
+				inList = false;
+			}
+			continue;
+		}
+
+		if (trimmed.startsWith('[') && trimmed.endsWith(']') && trimmed.includes(' > ')) {
+			continue;
+		}
+		if (trimmed.startsWith('[Source code in ') && trimmed.endsWith(']')) {
+			continue;
+		}
+
+		const codeMatch = trimmed.match(/^@@CODEBLOCK_(\d+)@@$/);
+		if (codeMatch) {
+			if (inList) {
+				htmlParts.push('</ul>');
+				inList = false;
+			}
+			htmlParts.push(codeBlocks[Number(codeMatch[1])]);
+			continue;
+		}
+
+		if (/^-{3,}$/.test(trimmed)) {
+			if (inList) {
+				htmlParts.push('</ul>');
+				inList = false;
+			}
+			htmlParts.push('<hr>');
+			continue;
+		}
+
+		const hMatch = trimmed.match(/^(\x23{1,4})\s+(.+)$/);
+		if (hMatch) {
+			if (inList) {
+				htmlParts.push('</ul>');
+				inList = false;
+			}
+			const level = Math.min(hMatch[1].length, 3);
+			htmlParts.push(`<h${level}>${formatInlineMarkdown(hMatch[2])}</h${level}>`);
+			continue;
+		}
+
+		const liMatch = trimmed.match(/^[-*]\s+(.+)$/);
+		if (liMatch) {
+			if (!inList) {
+				htmlParts.push('<ul>');
+				inList = true;
+			}
+			htmlParts.push(`<li>${formatInlineMarkdown(liMatch[1])}</li>`);
+			continue;
+		}
+
+		if (inList) {
+			htmlParts.push('</ul>');
+			inList = false;
+		}
+		htmlParts.push(`<p>${formatInlineMarkdown(trimmed)}</p>`);
+	}
+
+	if (inList) {
+		htmlParts.push('</ul>');
+	}
+
+	return htmlParts.join('');
+}
 
 async function loadStatus() {
 	try {
@@ -292,26 +483,46 @@ function appendMessageElement(role, content, sources = [], metrics = {}) {
 	const container = document.getElementById('messagesContainer');
 	const div = document.createElement('div');
 	div.className = `message ${role}`;
-	const textNode = document.createElement('div');
-	textNode.textContent = content;
-	div.appendChild(textNode);
+
+	if (role === 'assistant') {
+		const contentNode = document.createElement('div');
+		contentNode.className = 'md-content';
+		contentNode.innerHTML = renderMarkdown(content);
+		div.appendChild(contentNode);
+	} else {
+		const textNode = document.createElement('div');
+		textNode.textContent = content;
+		div.appendChild(textNode);
+	}
 
 	if (role === 'assistant' && sources && sources.length > 0) {
 		const srcBox = document.createElement('div');
 		srcBox.className = 'sources';
 		const header = document.createElement('div');
-		const lat = metrics && metrics.latency_seconds ? ` (${metrics.latency_seconds}s)` : '';
-		header.innerHTML = `<b>Источники FastAPI Reference${lat}:</b>`;
+		header.className = 'sources-title';
+		const lat = metrics && metrics.latency_seconds ? ` · ${metrics.latency_seconds}s` : '';
+		header.textContent = `Источники FastAPI Reference${lat}`;
 		srcBox.appendChild(header);
+
+		const badgeRow = document.createElement('div');
+		badgeRow.className = 'source-badges';
 		sources.forEach((src, i) => {
 			const link = document.createElement('a');
 			link.className = 'source-link';
 			link.href = src.section_url || '';
 			link.target = '_blank';
-			const rScore = src.rerank_score !== undefined && src.rerank_score !== null ? ` [rerank: ${Number(src.rerank_score).toFixed(2)}]` : '';
-			link.textContent = `${i + 1}. ${src.breadcrumb || src.section_title || 'FastAPI'}${rScore}`;
-			srcBox.appendChild(link);
+			const titleSpan = document.createElement('span');
+			titleSpan.textContent = `${i + 1}. ${src.breadcrumb || src.section_title || 'FastAPI'}`;
+			link.appendChild(titleSpan);
+			if (src.rerank_score !== undefined && src.rerank_score !== null) {
+				const scoreSpan = document.createElement('span');
+				scoreSpan.className = 'score-pill';
+				scoreSpan.textContent = `(${Number(src.rerank_score).toFixed(2)})`;
+				link.appendChild(scoreSpan);
+			}
+			badgeRow.appendChild(link);
 		});
+		srcBox.appendChild(badgeRow);
 		div.appendChild(srcBox);
 	}
 	container.appendChild(div);
