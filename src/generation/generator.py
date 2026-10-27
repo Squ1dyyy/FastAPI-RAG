@@ -14,6 +14,15 @@ class BaseGenerator(ABC):
 		"""Generate a synthesized response given query and retrieved context."""
 		pass
 
+	async def generate_with_history(
+		self,
+		query: str,
+		context: List[Dict[str, Any]],
+		history: Optional[List[Dict[str, str]]] = None,
+	) -> str:
+		"""Generate a response taking optional multi-turn chat session history into account."""
+		return await self.generate(query=query, context=context)
+
 
 class LLMGenerator(BaseGenerator):
 	"""Asynchronous RAG response generator using `AsyncOpenAI` for any OpenAI-compatible provider."""
@@ -39,11 +48,15 @@ class LLMGenerator(BaseGenerator):
 		self.system_prompt = system_prompt or config.rag_system_prompt
 		self._client: Optional[AsyncOpenAI] = None
 
+	def has_valid_api_key(self) -> bool:
+		"""Return True when a non-placeholder LLM API key is configured."""
+		return bool(self.api_key and self.api_key != "your_api_key_here")
+
 	@property
 	def client(self) -> AsyncOpenAI:
 		"""Lazy-initialize AsyncOpenAI client."""
 		if self._client is None:
-			if not self.api_key or self.api_key == "your_api_key_here":
+			if not self.has_valid_api_key():
 				raise ValueError(
 					"LLM_API_KEY is not configured in .env. "
 					"Set a valid API key for your LLM provider."
@@ -86,10 +99,40 @@ class LLMGenerator(BaseGenerator):
 			)
 		return "\n\n".join(blocks)
 
+	@staticmethod
+	def format_extractive_fallback(query: str, context: List[Dict[str, Any]]) -> str:
+		"""Build a structured documentation answer from top retrieved chunks when LLM_API_KEY is unset."""
+		if not context:
+			return f"No relevant FastAPI reference sections found for: '{query}'."
+
+		parts = [
+			"*(Note: `LLM_API_KEY` is not set in `.env`; showing top reranked FastAPI reference sections)*\n"
+		]
+		for idx, chunk in enumerate(context[:3], start=1):
+			meta = chunk.get("metadata", {})
+			breadcrumb = (
+				chunk.get("breadcrumb")
+				or meta.get("breadcrumb")
+				or chunk.get("section_title")
+				or "FastAPI Reference"
+			)
+			sec_url = (
+				chunk.get("section_url")
+				or meta.get("section_url")
+				or chunk.get("doc_url")
+				or ""
+			)
+			text = chunk.get("text", "").strip()
+			parts.append(f"### {idx}. {breadcrumb}\n**URL:** {sec_url}\n\n{text}")
+		return "\n\n---\n\n".join(parts)
+
 	def build_messages(
-		self, query: str, context: List[Dict[str, Any]]
+		self,
+		query: str,
+		context: List[Dict[str, Any]],
+		history: Optional[List[Dict[str, str]]] = None,
 	) -> List[Dict[str, str]]:
-		"""Construct system and user messages for chat completion."""
+		"""Construct system, conversation history, and user messages for chat completion."""
 		formatted_context = self.format_context(context)
 		user_prompt = (
 			f"FastAPI Reference Context:\n{formatted_context}\n\n"
@@ -97,35 +140,55 @@ class LLMGenerator(BaseGenerator):
 			"Provide a clear, accurate answer based on the context above and include "
 			"the relevant documentation URLs."
 		)
-		return [
-			{"role": "system", "content": self.system_prompt},
-			{"role": "user", "content": user_prompt},
+		messages: List[Dict[str, str]] = [
+			{"role": "system", "content": self.system_prompt}
 		]
+		if history:
+			for msg in history[-config.chat_history_limit :]:
+				role = msg.get("role", "")
+				content = msg.get("content", "")
+				if role in ("user", "assistant") and content:
+					messages.append({"role": role, "content": content})
+		messages.append({"role": "user", "content": user_prompt})
+		return messages
 
 	async def generate(
 		self,
 		query: str,
 		context: List[Dict[str, Any]],
+		history: Optional[List[Dict[str, str]]] = None,
 	) -> str:
 		"""Asynchronously generate an answer via AsyncOpenAI chat completions."""
 		response = await self.client.chat.completions.create(
 			model=self.model,
-			messages=self.build_messages(query, context),
+			messages=self.build_messages(query, context, history=history),
 			temperature=self.temperature,
 			max_tokens=self.max_tokens,
 		)
 		content = response.choices[0].message.content
 		return content.strip() if content else ""
 
+	async def generate_with_history(
+		self,
+		query: str,
+		context: List[Dict[str, Any]],
+		history: Optional[List[Dict[str, str]]] = None,
+	) -> str:
+		"""Generate an answer with session history, falling back to extractive output if no API key."""
+		if not self.has_valid_api_key():
+			return self.format_extractive_fallback(query=query, context=context)
+		return await self.generate(query=query, context=context, history=history)
+
 	async def generate_stream(
 		self,
 		query: str,
 		context: List[Dict[str, Any]],
+		history: Optional[List[Dict[str, str]]] = None,
 	) -> AsyncGenerator[str, None]:
 		"""Asynchronously stream response tokens via AsyncOpenAI chat completions."""
 		stream = await self.client.chat.completions.create(
 			model=self.model,
-			messages=self.build_messages(query, context),
+			messages=self.build_messages(query, context, history=history),
 			temperature=self.temperature,
 			max_tokens=self.max_tokens,
 			stream=True,

@@ -6,7 +6,11 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from configs.config import config
-from src.database.repository import DocumentRepository, QueryLogRepository
+from src.database.repository import (
+	ChatSessionRepository,
+	DocumentRepository,
+	QueryLogRepository,
+)
 from src.embeddings import BaseEmbedder, MultilingualE5Embedder
 from src.evaluation import BaseEvaluator, RAGEvaluator
 from src.generation import BaseGenerator, LLMGenerator
@@ -104,7 +108,8 @@ class HybridRAGPipeline:
 		"""Load all structural chunks and embeddings from DB and build indices asynchronously."""
 		doc_repo = DocumentRepository(session)
 		self.corpus = await doc_repo.get_all_chunks_for_indexing()
-		await self.hybrid_retriever.index_async(self.corpus)
+		if self.corpus:
+			await self.hybrid_retriever.index_async(self.corpus)
 		return len(self.corpus)
 
 	def build_index_from_files(self, data_dir: Optional[Path] = None) -> int:
@@ -187,9 +192,25 @@ class HybridRAGPipeline:
 		rerank: Optional[bool] = None,
 		ground_truth: Optional[str] = None,
 		session: Optional[AsyncSession] = None,
+		session_id: Optional[str] = None,
+		history: Optional[List[Dict[str, str]]] = None,
 	) -> Dict[str, Any]:
-		"""Execute full end-to-end RAG: Hybrid Search -> GPU Rerank -> OpenRouter LLM -> Evaluation -> DB Log."""
+		"""Execute full end-to-end RAG: Hybrid Search -> GPU Rerank -> LLM -> Evaluation -> Session & DB Log."""
 		start_time = time.perf_counter()
+
+		active_session_id = session_id
+		chat_repo: Optional[ChatSessionRepository] = None
+		conversation_history: List[Dict[str, str]] = list(history or [])
+
+		if session is not None and session_id is not None:
+			chat_repo = ChatSessionRepository(session)
+			chat_session = await chat_repo.get_or_create_session(session_id=session_id)
+			active_session_id = chat_session.id
+			if not conversation_history:
+				conversation_history = await chat_repo.get_history(
+					active_session_id,
+					limit=config.chat_history_limit,
+				)
 
 		context_chunks = await self.search_async(
 			query=query,
@@ -198,7 +219,11 @@ class HybridRAGPipeline:
 			rerank=rerank,
 		)
 
-		llm_answer = await self.generator.generate(query=query, context=context_chunks)
+		llm_answer = await self.generator.generate_with_history(
+			query=query,
+			context=context_chunks,
+			history=conversation_history,
+		)
 		metrics = await self.evaluator.evaluate(
 			query=query,
 			response=llm_answer,
@@ -207,34 +232,55 @@ class HybridRAGPipeline:
 		)
 		elapsed = time.perf_counter() - start_time
 
+		sources_summary = [
+			{
+				"id": r.get("id"),
+				"doc_title": r.get("doc_title") or r.get("metadata", {}).get("doc_title"),
+				"section_title": r.get("section_title"),
+				"breadcrumb": r.get("breadcrumb") or r.get("section_title"),
+				"section_url": r.get("section_url"),
+				"hybrid_score": r.get("hybrid_score"),
+				"rerank_score": r.get("rerank_score"),
+			}
+			for r in context_chunks
+		]
+
 		if session is not None:
+			if chat_repo is not None and active_session_id is not None:
+				await chat_repo.add_message(
+					session_id=active_session_id,
+					role="user",
+					content=query,
+				)
+				await chat_repo.add_message(
+					session_id=active_session_id,
+					role="assistant",
+					content=llm_answer,
+					sources=sources_summary,
+					metrics={**metrics, "latency_seconds": round(elapsed, 4)},
+				)
+
 			query_repo = QueryLogRepository(session)
 			await query_repo.log_query(
 				query=query,
 				response=llm_answer,
-				retriever_used="hybrid_e5_bm25fast_reranked" if (rerank or self.use_reranker) else "hybrid_e5_bm25fast",
-				retrieved_chunks={
-					"results": [
-						{
-							"id": r.get("id"),
-							"doc_title": r.get("doc_title") or r.get("metadata", {}).get("doc_title"),
-							"section_title": r.get("section_title"),
-							"section_url": r.get("section_url"),
-							"hybrid_score": r.get("hybrid_score"),
-							"rerank_score": r.get("rerank_score"),
-						}
-						for r in context_chunks
-					]
-				},
+				retriever_used=(
+					"hybrid_e5_bm25fast_reranked"
+					if (rerank or self.use_reranker)
+					else "hybrid_e5_bm25fast"
+				),
+				retrieved_chunks={"results": sources_summary},
 				evaluation_metrics=metrics,
 				latency_seconds=elapsed,
 			)
 			await session.commit()
 
 		return {
+			"session_id": active_session_id,
 			"query": query,
 			"answer": llm_answer,
 			"context": context_chunks,
+			"sources": sources_summary,
 			"metrics": metrics,
 			"latency_seconds": round(elapsed, 4),
 		}

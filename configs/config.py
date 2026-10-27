@@ -59,6 +59,10 @@ class Config(BaseSettings):
 		"Always cite the exact section title and URL for your claims."
 	)
 
+	app_host: str = "127.0.0.1"
+	app_port: int = 8000
+	chat_history_limit: int = 10
+
 	def resolve_device(self) -> str:
 		"""Return configured device ('cuda' when CUDA GPU is available, otherwise 'cpu')."""
 		requested = self.device.strip().lower()
