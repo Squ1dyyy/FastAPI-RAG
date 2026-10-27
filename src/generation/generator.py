@@ -160,6 +160,62 @@ class LLMGenerator(BaseGenerator):
 
 		return "\n\n---\n\n".join(sections)
 
+	@staticmethod
+	def extract_code_blocks(context: List[Dict[str, Any]]) -> List[str]:
+		"""Extract fenced Python code blocks from retrieved chunks, prioritizing multi-line examples."""
+		blocks: List[str] = []
+		seen: set[str] = set()
+		pattern = re.compile(r"```(?:python)?\n([\s\S]*?)```")
+
+		for chunk in context:
+			raw = chunk.get("text", "")
+			for match in pattern.finditer(raw):
+				code = match.group(1).strip()
+				if not code or code in seen:
+					continue
+				if "=" in code and "\n" not in code:
+					parts = [p.strip() for p in code.split("=", 1)]
+					if len(parts) == 2 and parts[0] == parts[1]:
+						continue
+				seen.add(code)
+				blocks.append(code)
+
+		blocks.sort(
+			key=lambda c: (
+				1 if ("from fastapi" in c or "@app" in c or "def " in c) else 0,
+				c.count("\n"),
+				len(c),
+			),
+			reverse=True,
+		)
+		return blocks
+
+	@classmethod
+	def ensure_code_snippet_in_answer(
+		cls,
+		answer: str,
+		context: List[Dict[str, Any]],
+	) -> str:
+		"""Guarantee that a code block from the retrieved chunks is present in the answer if available."""
+		if not answer:
+			return answer
+
+		available_codes = cls.extract_code_blocks(context)
+		if not available_codes:
+			return answer
+
+		best_code = available_codes[0]
+		if "```" not in answer:
+			return f"{answer.rstrip()}\n\n```python\n{best_code}\n```"
+
+		if best_code.count("\n") >= 2 and best_code not in answer:
+			existing_blocks = re.findall(r"```(?:python)?\n([\s\S]*?)```", answer)
+			max_existing_lines = max((b.strip().count("\n") for b in existing_blocks), default=0)
+			if max_existing_lines < 2:
+				return f"{answer.rstrip()}\n\n```python\n{best_code}\n```"
+
+		return answer
+
 	def build_messages(
 		self,
 		query: str,
@@ -180,8 +236,9 @@ class LLMGenerator(BaseGenerator):
 			"Instructions:\n"
 			"1. Use ONLY the information explicitly present in the FastAPI Reference Context above.\n"
 			"2. Do NOT use any prior or external knowledge outside the provided context.\n"
-			"3. If the context does not contain the answer, clearly state that the retrieved documentation does not cover this.\n"
-			"4. Format the answer in clean Markdown and cite the exact documentation URLs from the context."
+			"3. MANDATORY: If the FastAPI Reference Context contains any code snippets or signatures (```python ... ```), you MUST include at least one verbatim code block (especially full usage examples if present) from the context in your response.\n"
+			"4. If the context does not contain the answer, clearly state that the retrieved documentation does not cover this.\n"
+			"5. Format the answer in clean Markdown and cite the exact documentation URLs from the context."
 		)
 		messages: List[Dict[str, str]] = [
 			{"role": "system", "content": self.system_prompt}
@@ -212,7 +269,8 @@ class LLMGenerator(BaseGenerator):
 			max_tokens=self.max_tokens,
 		)
 		content = response.choices[0].message.content
-		return content.strip() if content else ""
+		raw_answer = content.strip() if content else ""
+		return self.ensure_code_snippet_in_answer(raw_answer, context)
 
 	async def generate_with_history(
 		self,

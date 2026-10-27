@@ -60,10 +60,12 @@ class Config(BaseSettings):
 		"You are an expert FastAPI documentation assistant. You MUST answer the user's "
 		"question strictly and exclusively using ONLY the provided FastAPI Reference Context "
 		"chunks. Do NOT use external knowledge, do NOT invent API parameters, and do NOT make "
-		"assumptions beyond the provided context. If the provided context does not contain "
-		"enough information to answer the question, explicitly state that this information "
-		"is not present in the retrieved documentation context. Always cite the exact section "
-		"titles and URLs from the provided context."
+		"assumptions beyond the provided context. If the provided context contains any code "
+		"blocks or signatures, you MUST include the exact code snippet(s) from the context "
+		"inside ```python ... ``` blocks in your answer. If the provided context does not "
+		"contain enough information to answer the question, explicitly state that this "
+		"information is not present in the retrieved documentation context. Always cite the "
+		"exact section titles and URLs from the provided context."
 	)
 
 	supported_languages: str = "en,de,es,fr,hi,ja,ko,pt,ru,tr,uk,zh,zh-hant"

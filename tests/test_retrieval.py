@@ -180,6 +180,24 @@ class TestHybridRetrievalAndAsyncRAG(unittest.IsolatedAsyncioTestCase):
 		with self.assertRaises(ValueError):
 			_ = llm_gen.client
 
+	def test_ensure_code_snippet_in_answer(self):
+		chunks_with_code = [
+			{
+				"id": "bg_1",
+				"text": (
+					"## BackgroundTasks\n```python\nBackgroundTasks(tasks=None)\n```\n\n"
+					"## Example\n```python\nfrom fastapi import BackgroundTasks, FastAPI\n"
+					"app = FastAPI()\n@app.post('/send')\nasync def send(bt: BackgroundTasks):\n"
+					"    bt.add_task(write_log, 'hello')\n```"
+				),
+			}
+		]
+		answer_without_code = "Вы можете использовать BackgroundTasks для запуска фоновых задач."
+		enforced = LLMGenerator.ensure_code_snippet_in_answer(answer_without_code, chunks_with_code)
+		self.assertIn("```python", enforced)
+		self.assertIn("from fastapi import BackgroundTasks, FastAPI", enforced)
+		self.assertIn("bt.add_task(write_log, 'hello')", enforced)
+
 	def test_small_to_big_h2_expansion(self):
 		pipeline = HybridRAGPipeline(
 			embedder=DummyEmbedder(),
