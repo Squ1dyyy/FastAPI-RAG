@@ -365,6 +365,7 @@ class HybridRAGPipeline:
 		by_doc_crumb: Dict[tuple[str, str], Dict[str, Any]] = {}
 		doc_h2_chunks: Dict[str, List[Dict[str, Any]]] = {}
 		doc_h1_chunk: Dict[str, Dict[str, Any]] = {}
+		h2_valuable_children: Dict[tuple[str, str], List[Dict[str, Any]]] = {}
 
 		for ch in active_corpus:
 			meta = ch.get("metadata", {})
@@ -376,6 +377,7 @@ class HybridRAGPipeline:
 			crumb = ch.get("breadcrumb") or meta.get("breadcrumb") or ""
 			sym_type = ch.get("symbol_type") or meta.get("symbol_type") or ""
 			h_level = meta.get("heading_level")
+			txt = ch.get("text", "")
 
 			if anc and (doc_key, anc) not in by_doc_anchor:
 				by_doc_anchor[(doc_key, anc)] = ch
@@ -391,6 +393,26 @@ class HybridRAGPipeline:
 					existing_list = doc_h2_chunks.setdefault(doc_key, [])
 					if not any(x.get("anchor") == anc and anc for x in existing_list):
 						existing_list.append(ch)
+			elif len(crumb_parts) >= 3 and doc_key:
+				is_attr = sym_type == "attribute" or "instance-attribute" in txt[:180]
+				if not is_attr:
+					h2_crumb = " > ".join(crumb_parts[:2])
+					h2_valuable_children.setdefault((doc_key, h2_crumb), []).append(ch)
+
+		def _enrich_h2_with_methods_and_examples(h2_item: Dict[str, Any], d_key: str) -> str:
+			base_txt = h2_item.get("text", "").strip()
+			crumb = h2_item.get("breadcrumb") or h2_item.get("metadata", {}).get("breadcrumb") or ""
+			crumb_parts = [p.strip() for p in crumb.split(" > ") if p.strip()]
+			h2_crumb = " > ".join(crumb_parts[:2]) if len(crumb_parts) >= 2 else crumb
+			children = h2_valuable_children.get((d_key, h2_crumb), [])
+			if not children:
+				return base_txt
+			parts = [base_txt]
+			for child in children[:5]:
+				c_txt = child.get("text", "").strip()
+				if c_txt and c_txt not in base_txt:
+					parts.append(c_txt)
+			return "\n\n".join(parts)
 
 		def _resolve_h2_branch(item: Dict[str, Any]) -> tuple[str, Optional[Dict[str, Any]], bool]:
 			meta = item.get("metadata", {})
@@ -465,7 +487,7 @@ class HybridRAGPipeline:
 					hub_item = dict(h1_node)
 					h2_blocks = [h1_node.get("text", "").strip()]
 					for sib in all_h2s[:10]:
-						sib_txt = sib.get("text", "").strip()
+						sib_txt = _enrich_h2_with_methods_and_examples(sib, d_key)
 						if sib_txt:
 							h2_blocks.append(sib_txt)
 					hub_item["text"] = "\n\n".join(b for b in h2_blocks if b)
@@ -482,6 +504,7 @@ class HybridRAGPipeline:
 						continue
 					seen_chunk_ids.add(sib_id)
 					sib_copy = dict(sib)
+					sib_copy["text"] = _enrich_h2_with_methods_and_examples(sib, d_key)
 					sib_copy["rerank_score"] = base_score
 					sib_copy["hybrid_score"] = base_hybrid
 					sib_copy["lca_level"] = "h1_child_h2"
@@ -495,13 +518,21 @@ class HybridRAGPipeline:
 				and parent_chunk.get("text")
 			):
 				enriched = dict(item)
-				p_text = parent_chunk["text"].strip()
+				p_text = _enrich_h2_with_methods_and_examples(parent_chunk, d_key)
 				c_text = item.get("text", "").strip()
-				if p_text not in c_text:
+				if c_text not in p_text:
 					enriched["text"] = f"{p_text}\n\n{c_text}"
+				else:
+					enriched["text"] = p_text
 				enriched["parent_anchor"] = parent_chunk.get("anchor", "")
 				enriched["parent_section_title"] = parent_chunk.get("section_title", "")
 				enriched["parent_section_url"] = parent_chunk.get("section_url", "")
+				enriched["lca_level"] = "h2"
+				enriched["small_to_big"] = True
+				expanded_list.append(enriched)
+			elif parent_chunk is not None and parent_chunk.get("id") == item.get("id"):
+				enriched = dict(item)
+				enriched["text"] = _enrich_h2_with_methods_and_examples(item, d_key)
 				enriched["lca_level"] = "h2"
 				enriched["small_to_big"] = True
 				expanded_list.append(enriched)
@@ -581,6 +612,7 @@ class HybridRAGPipeline:
 		active_language = (language or config.default_language or "ru").strip().lower()
 		chat_repo: Optional[ChatSessionRepository] = None
 		conversation_history: List[Dict[str, str]] = list(history or [])
+		prior_source_hints: List[str] = []
 
 		if session is not None and session_id is not None:
 			chat_repo = ChatSessionRepository(session)
@@ -595,6 +627,14 @@ class HybridRAGPipeline:
 					active_session_id,
 					limit=config.chat_history_limit,
 				)
+			if chat_session.messages:
+				for msg_obj in reversed(chat_session.messages):
+					if msg_obj.role == "assistant" and msg_obj.sources:
+						for src in msg_obj.sources[:3]:
+							hint = src.get("breadcrumb") or src.get("section_title") or ""
+							if hint and hint not in prior_source_hints:
+								prior_source_hints.append(hint)
+						break
 
 		if (
 			session is not None
@@ -611,8 +651,21 @@ class HybridRAGPipeline:
 				await retr.index_async(lang_chunks)
 				self.language_retrievers[active_language] = retr
 
+		search_query = query
+		if conversation_history:
+			recent_user_turns = [
+				m["content"].strip()
+				for m in conversation_history
+				if m.get("role") == "user" and m.get("content")
+			][-2:]
+			context_parts = list(recent_user_turns)
+			if prior_source_hints:
+				context_parts.append(" ".join(prior_source_hints))
+			context_parts.append(query)
+			search_query = " | ".join(context_parts)
+
 		context_chunks = await self.search_async(
-			query=query,
+			query=search_query,
 			top_k=top_k,
 			candidate_k=candidate_k,
 			rerank=rerank,
