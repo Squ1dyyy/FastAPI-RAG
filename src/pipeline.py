@@ -346,6 +346,81 @@ class HybridRAGPipeline:
 			return sum(self.language_counts.values())
 		return len(self.corpus)
 
+	def expand_small_to_big(
+		self,
+		results: List[Dict[str, Any]],
+		language: Optional[str] = None,
+	) -> List[Dict[str, Any]]:
+		"""Expand child h3/h4 chunks by attaching their parent h2 class/function chunk context."""
+		if not results:
+			return results
+
+		lang_key = (language or config.default_language or "ru").strip().lower()
+		active_corpus = self.language_corpora.get(lang_key) or self.corpus
+		if not active_corpus:
+			return results
+
+		by_doc_anchor: Dict[tuple[str, str], Dict[str, Any]] = {}
+		by_doc_crumb: Dict[tuple[str, str], Dict[str, Any]] = {}
+		for ch in active_corpus:
+			meta = ch.get("metadata", {})
+			sub_idx = meta.get("sub_chunk_index")
+			if sub_idx not in (None, 0):
+				continue
+			doc_key = ch.get("doc_url") or meta.get("doc_url") or ch.get("doc_title") or ""
+			anc = ch.get("anchor") or meta.get("anchor") or ""
+			crumb = ch.get("breadcrumb") or meta.get("breadcrumb") or ""
+			if anc and (doc_key, anc) not in by_doc_anchor:
+				by_doc_anchor[(doc_key, anc)] = ch
+			if crumb and (doc_key, crumb) not in by_doc_crumb:
+				by_doc_crumb[(doc_key, crumb)] = ch
+
+		expanded_list: List[Dict[str, Any]] = []
+		for item in results:
+			meta = item.get("metadata", {})
+			doc_key = item.get("doc_url") or meta.get("doc_url") or item.get("doc_title") or ""
+			anchor = item.get("anchor") or meta.get("anchor") or ""
+			crumb = item.get("breadcrumb") or meta.get("breadcrumb") or ""
+
+			parent_chunk: Optional[Dict[str, Any]] = None
+			explicit_parent = meta.get("parent_anchor", "")
+			if explicit_parent:
+				parent_chunk = by_doc_anchor.get((doc_key, explicit_parent))
+
+			if parent_chunk is None and anchor:
+				if "--" in anchor:
+					cand_anc = anchor.split("--", 1)[0]
+					parent_chunk = by_doc_anchor.get((doc_key, cand_anc))
+				if parent_chunk is None and "." in anchor:
+					cand_anc = anchor.rsplit(".", 1)[0]
+					parent_chunk = by_doc_anchor.get((doc_key, cand_anc))
+
+			if parent_chunk is None and " > " in crumb:
+				parts = [p.strip() for p in crumb.split(" > ") if p.strip()]
+				if len(parts) >= 3:
+					h2_crumb = " > ".join(parts[:2])
+					parent_chunk = by_doc_crumb.get((doc_key, h2_crumb))
+
+			if (
+				parent_chunk is not None
+				and parent_chunk.get("id") != item.get("id")
+				and parent_chunk.get("text")
+			):
+				enriched = dict(item)
+				p_text = parent_chunk["text"].strip()
+				c_text = item.get("text", "").strip()
+				if p_text not in c_text:
+					enriched["text"] = f"{p_text}\n\n{c_text}"
+				enriched["parent_anchor"] = parent_chunk.get("anchor", "")
+				enriched["parent_section_title"] = parent_chunk.get("section_title", "")
+				enriched["parent_section_url"] = parent_chunk.get("section_url", "")
+				enriched["small_to_big"] = True
+				expanded_list.append(enriched)
+			else:
+				expanded_list.append(item)
+
+		return expanded_list
+
 	def search(
 		self,
 		query: str,
@@ -353,18 +428,24 @@ class HybridRAGPipeline:
 		candidate_k: Optional[int] = None,
 		rerank: Optional[bool] = None,
 		language: Optional[str] = None,
+		small_to_big: Optional[bool] = None,
 	) -> List[Dict[str, Any]]:
-		"""Synchronously execute hybrid search followed by lightweight GPU reranking."""
+		"""Synchronously execute hybrid search, GPU reranking, and Small-to-Big h2 expansion."""
 		final_k = top_k or config.retrieval_top_k
 		pool_k = candidate_k or max(config.retrieval_candidate_k, final_k * 3)
 		do_rerank = self.use_reranker if rerank is None else rerank
+		do_s2b = config.small_to_big if small_to_big is None else small_to_big
 		active_retriever = self._select_retriever(language)
 
 		candidates = active_retriever.retrieve(query, top_k=pool_k)
 		if do_rerank and self.reranker is not None and candidates:
-			return self.reranker.rerank(query, candidates, top_k=final_k)
+			ranked = self.reranker.rerank(query, candidates, top_k=final_k)
+		else:
+			ranked = candidates[:final_k]
 
-		return candidates[:final_k]
+		if do_s2b:
+			return self.expand_small_to_big(ranked, language=language)
+		return ranked
 
 	async def search_async(
 		self,
@@ -373,18 +454,24 @@ class HybridRAGPipeline:
 		candidate_k: Optional[int] = None,
 		rerank: Optional[bool] = None,
 		language: Optional[str] = None,
+		small_to_big: Optional[bool] = None,
 	) -> List[Dict[str, Any]]:
-		"""Asynchronously execute concurrent hybrid search and GPU Cross-Encoder reranking."""
+		"""Asynchronously execute concurrent hybrid search, GPU reranking, and Small-to-Big h2 expansion."""
 		final_k = top_k or config.retrieval_top_k
 		pool_k = candidate_k or max(config.retrieval_candidate_k, final_k * 3)
 		do_rerank = self.use_reranker if rerank is None else rerank
+		do_s2b = config.small_to_big if small_to_big is None else small_to_big
 		active_retriever = await self._select_retriever_async(language)
 
 		candidates = await active_retriever.retrieve_async(query, top_k=pool_k)
 		if do_rerank and self.reranker is not None and candidates:
-			return await self.reranker.rerank_async(query, candidates, top_k=final_k)
+			ranked = await self.reranker.rerank_async(query, candidates, top_k=final_k)
+		else:
+			ranked = candidates[:final_k]
 
-		return candidates[:final_k]
+		if do_s2b:
+			return self.expand_small_to_big(ranked, language=language)
+		return ranked
 
 	async def answer(
 		self,

@@ -180,6 +180,43 @@ class TestHybridRetrievalAndAsyncRAG(unittest.IsolatedAsyncioTestCase):
 		with self.assertRaises(ValueError):
 			_ = llm_gen.client
 
+	def test_small_to_big_h2_expansion(self):
+		pipeline = HybridRAGPipeline(
+			embedder=DummyEmbedder(),
+			reranker=DummyReranker(),
+			generator=DummyGenerator(),
+			evaluator=RAGEvaluator(),
+		)
+		h2_chunk = {
+			"id": "doc_mw_0",
+			"doc_title": "Middleware",
+			"doc_url": "https://fastapi.tiangolo.com/reference/middleware/",
+			"section_title": "GZipMiddleware",
+			"anchor": "fastapi.middleware.gzip.GZipMiddleware",
+			"breadcrumb": "Middleware > GZipMiddleware",
+			"section_url": "https://fastapi.tiangolo.com/reference/middleware/#fastapi.middleware.gzip.GZipMiddleware",
+			"text": "## fastapi.middleware.gzip.GZipMiddleware\nGZipMiddleware(app, minimum_size=500, compresslevel=9)",
+			"metadata": {"heading_level": 2, "parent_anchor": ""},
+		}
+		h3_chunk = {
+			"id": "doc_mw_1",
+			"doc_title": "Middleware",
+			"doc_url": "https://fastapi.tiangolo.com/reference/middleware/",
+			"section_title": "compresslevel",
+			"anchor": "fastapi.middleware.gzip.GZipMiddleware.compresslevel",
+			"breadcrumb": "Middleware > GZipMiddleware > compresslevel",
+			"section_url": "https://fastapi.tiangolo.com/reference/middleware/#fastapi.middleware.gzip.GZipMiddleware.compresslevel",
+			"text": "## compresslevel instance-attribute\ncompresslevel = compresslevel",
+			"metadata": {"heading_level": 3, "parent_anchor": "fastapi.middleware.gzip.GZipMiddleware"},
+		}
+		pipeline.corpus = [h2_chunk, h3_chunk]
+		expanded = pipeline.expand_small_to_big([h3_chunk])
+		self.assertEqual(len(expanded), 1)
+		self.assertTrue(expanded[0].get("small_to_big"))
+		self.assertEqual(expanded[0].get("parent_anchor"), "fastapi.middleware.gzip.GZipMiddleware")
+		self.assertIn("GZipMiddleware(app, minimum_size=500, compresslevel=9)", expanded[0]["text"])
+		self.assertIn("compresslevel = compresslevel", expanded[0]["text"])
+
 	async def test_rag_evaluator_metrics_and_ground_truth_f1(self):
 		evaluator = RAGEvaluator()
 		metrics = await evaluator.evaluate(

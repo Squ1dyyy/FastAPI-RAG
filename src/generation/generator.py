@@ -88,7 +88,7 @@ class LLMGenerator(BaseGenerator):
 		cleaned: List[str] = []
 		for idx, line in enumerate(lines):
 			stripped = line.strip()
-			if idx == 0 and stripped.startswith("[") and stripped.endswith("]"):
+			if stripped.startswith("[") and stripped.endswith("]") and (idx == 0 or " > " in stripped):
 				continue
 			if stripped.startswith("[Source code in ") and stripped.endswith("]"):
 				continue

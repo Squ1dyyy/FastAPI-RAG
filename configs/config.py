@@ -48,6 +48,7 @@ class Config(BaseSettings):
 	reranker_model_name: str = "cross-encoder/ms-marco-TinyBERT-L-2-v2"
 	reranker_batch_size: int = 32
 	use_reranker: bool = True
+	small_to_big: bool = True
 
 	llm_api_key: str = ""
 	llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"

@@ -245,8 +245,11 @@ class FastAPIHTMLParser:
 		cleaned_root = self._prepare_article_dom(article)
 
 		sections: List[Dict[str, Any]] = []
+		current_h2_anchor: str = ""
 		current_section: Dict[str, Any] = {
 			"anchor": "",
+			"parent_anchor": "",
+			"heading_level": 1,
 			"section_title": doc_title,
 			"breadcrumb": doc_title,
 			"symbol_type": "overview",
@@ -265,6 +268,8 @@ class FastAPIHTMLParser:
 					"doc_url": base_url,
 					"section_title": current_section["section_title"],
 					"anchor": anchor,
+					"parent_anchor": current_section.get("parent_anchor", ""),
+					"heading_level": current_section.get("heading_level", 2),
 					"section_url": section_url,
 					"breadcrumb": current_section["breadcrumb"],
 					"symbol_type": current_section["symbol_type"],
@@ -273,7 +278,7 @@ class FastAPIHTMLParser:
 				})
 
 		def _walk_dom(node: Tag):
-			nonlocal current_section
+			nonlocal current_section, current_h2_anchor
 			for child in node.children:
 				if isinstance(child, NavigableString):
 					txt = str(child).strip()
@@ -287,13 +292,20 @@ class FastAPIHTMLParser:
 				if child.name in self.HEADING_TAGS:
 					heading_id = child.get("id", "").strip()
 					heading_text = self._normalize_whitespace(child.get_text(" ", strip=True))
+					level_num = int(child.name[1])
 					if child.name == "h1":
 						current_section["anchor"] = heading_id
+						current_section["heading_level"] = 1
 						current_section["section_title"] = doc_title
 						current_section["breadcrumb"] = doc_title
 						current_section["lines"].append(f"# {doc_title}")
 					elif heading_id:
 						_flush_current()
+						if level_num == 2:
+							current_h2_anchor = heading_id
+							parent_anchor = ""
+						else:
+							parent_anchor = current_h2_anchor
 						toc_info = toc_map.get(heading_id)
 						sec_title = toc_info["title"] if toc_info else heading_text
 						sec_crumb = (
@@ -304,6 +316,8 @@ class FastAPIHTMLParser:
 						sym_type = self._extract_symbol_type(child)
 						current_section = {
 							"anchor": heading_id,
+							"parent_anchor": parent_anchor,
+							"heading_level": level_num,
 							"section_title": sec_title,
 							"breadcrumb": sec_crumb,
 							"symbol_type": sym_type,
@@ -351,6 +365,8 @@ class FastAPIHTMLParser:
 				"language": detected_lang,
 				"section_title": sec["section_title"],
 				"anchor": sec["anchor"],
+				"parent_anchor": sec.get("parent_anchor", ""),
+				"heading_level": sec.get("heading_level", 2),
 				"section_url": sec["section_url"],
 				"breadcrumb": sec["breadcrumb"],
 				"symbol_type": sec["symbol_type"],
