@@ -67,6 +67,33 @@ class TestDatabaseModelsAndRepositories(unittest.IsolatedAsyncioTestCase):
 			self.assertEqual(fetched.chunks[0].symbol_type, "class")
 			self.assertEqual(fetched.chunks[0].embedding, [0.1, 0.2, 0.3])
 
+	async def test_update_existing_document_replaces_chunks(self):
+		url = "https://fastapi.tiangolo.com/reference/status/"
+		async with self.session_factory() as session:
+			repo = DocumentRepository(session)
+			await repo.save_document(
+				title="Old Status Title",
+				url=url,
+				chunks_data=[
+					{"section_title": "Old1", "text": "Text 1"},
+					{"section_title": "Old2", "text": "Text 2"},
+				],
+			)
+			await session.commit()
+
+		async with self.session_factory() as session:
+			repo = DocumentRepository(session)
+			updated = await repo.save_document(
+				title="New Status Codes",
+				url=url,
+				toc_sections=[{"anchor": "http_200", "title": "200 OK"}],
+				chunks_data=[{"section_title": "HTTP 200", "text": "HTTP_200_OK"}],
+			)
+			await session.commit()
+			self.assertEqual(updated.title, "New Status Codes")
+			self.assertEqual(len(updated.chunks), 1)
+			self.assertEqual(updated.chunks[0].section_title, "HTTP 200")
+
 	async def test_get_all_chunks_for_indexing(self):
 		async with self.session_factory() as session:
 			repo = DocumentRepository(session)
@@ -91,6 +118,12 @@ class TestDatabaseModelsAndRepositories(unittest.IsolatedAsyncioTestCase):
 			self.assertEqual(corpus[0]["section_title"], "HTTPException")
 			self.assertEqual(corpus[0]["embedding"], [0.5, 0.5])
 			self.assertEqual(corpus[0]["metadata"]["doc_title"], "FastAPI Guide")
+
+	async def test_get_nonexistent_document_returns_none(self):
+		async with self.session_factory() as session:
+			repo = DocumentRepository(session)
+			doc = await repo.get_by_url("https://fastapi.tiangolo.com/nonexistent/")
+			self.assertIsNone(doc)
 
 	async def test_query_logging(self):
 		async with self.session_factory() as session:
