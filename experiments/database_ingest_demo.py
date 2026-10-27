@@ -1,4 +1,4 @@
-"""Asynchronously ingest structural HTML sections and TOC from `data/` into PostgreSQL with SQLAlchemy."""
+"""Asynchronously ingest structural HTML sections, TOC, and GPU E5 embeddings into the database."""
 import asyncio
 import sys
 from pathlib import Path
@@ -13,7 +13,7 @@ from src.database import (
 	create_engine_and_session,
 	init_db,
 )
-from src.preprocessing import FastAPIHTMLParser
+from src.pipeline import HybridRAGPipeline
 
 
 async def main():
@@ -29,33 +29,22 @@ async def main():
 		engine, session_factory = create_engine_and_session(config.fallback_sqlite_url)
 		await init_db(engine)
 
-	parser = FastAPIHTMLParser()
-	data_files = [
-		f for f in sorted(config.data_dir.glob("*.html"))
-		if f.name != config.cached_routers_filename
-	]
-	print(f"Asynchronously parsing structural sections from {len(data_files)} files...")
-
-	parsed_docs = await asyncio.gather(*[parser.parse_file_async(f) for f in data_files])
+	active_device = config.resolve_device()
+	print(f"Initializing HybridRAGPipeline on device='{active_device}'...")
+	pipeline = HybridRAGPipeline(device=active_device)
 
 	async with session_factory() as session:
+		total_chunks = await pipeline.ingest_to_db(
+			session=session,
+			data_dir=config.data_dir,
+			compute_embeddings=True,
+		)
+		print(f"Successfully ingested {total_chunks} chunks with GPU E5 embeddings into the database.")
+
 		repo = DocumentRepository(session)
-		total_toc = 0
-		for parsed in parsed_docs:
-			await repo.save_document(
-				title=parsed["title"],
-				url=parsed["url"],
-				file_path=parsed["file_path"],
-				toc_sections=parsed["toc"],
-				chunks_data=parsed["chunks"],
-			)
-			total_toc += len(parsed["toc"])
-
-		await session.commit()
-		print(f"Ingested {len(parsed_docs)} documents ({total_toc} TOC items from md-sidebar__scrollwrap).")
-
 		corpus = await repo.get_all_chunks_for_indexing()
-		print(f"Retrieved {len(corpus)} structural section chunks ready for Hybrid RAG indexing.")
+		has_emb = sum(1 for c in corpus if c.get("embedding"))
+		print(f"Verified DB records: {len(corpus)} chunks loaded ({has_emb} with 384-d E5 vectors).")
 
 	await engine.dispose()
 
