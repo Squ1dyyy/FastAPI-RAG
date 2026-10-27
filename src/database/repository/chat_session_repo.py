@@ -4,6 +4,7 @@ from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from configs.config import config
 from src.database.models.chat_session import ChatMessage, ChatSession
 
 
@@ -27,11 +28,14 @@ class ChatSessionRepository:
 		self,
 		session_id: Optional[str] = None,
 		title: str = "New Chat",
+		language: Optional[str] = None,
 	) -> ChatSession:
 		"""Create a new chat session and flush it to the database."""
+		active_lang = (language or config.default_language or "ru").strip().lower()
 		chat_session = ChatSession(
 			id=session_id or str(uuid.uuid4()),
 			title=title,
+			language=active_lang,
 			messages=[],
 		)
 		self.session.add(chat_session)
@@ -42,13 +46,21 @@ class ChatSessionRepository:
 		self,
 		session_id: Optional[str] = None,
 		title: str = "New Chat",
+		language: Optional[str] = None,
 	) -> ChatSession:
 		"""Return an existing chat session by ID or create a new one if not found."""
 		if session_id:
 			existing = await self.get_session(session_id)
 			if existing is not None:
+				if language:
+					existing.language = language.strip().lower()
+					await self.session.flush()
 				return existing
-		return await self.create_session(session_id=session_id, title=title)
+		return await self.create_session(
+			session_id=session_id,
+			title=title,
+			language=language,
+		)
 
 	async def list_sessions(self, limit: int = 50) -> List[ChatSession]:
 		"""Return the most recent chat sessions ordered by update time descending."""

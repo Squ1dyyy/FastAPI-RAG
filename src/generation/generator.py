@@ -5,6 +5,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 from openai import AsyncOpenAI
 
 from configs.config import Config, config
+from src.grabber import LANGUAGE_LABELS
 
 
 class BaseGenerator(ABC):
@@ -20,6 +21,7 @@ class BaseGenerator(ABC):
 		query: str,
 		context: List[Dict[str, Any]],
 		history: Optional[List[Dict[str, str]]] = None,
+		language: Optional[str] = None,
 	) -> str:
 		"""Generate a response taking optional multi-turn chat session history into account."""
 		return await self.generate(query=query, context=context)
@@ -118,10 +120,11 @@ class LLMGenerator(BaseGenerator):
 				or chunk.get("doc_url")
 				or ""
 			)
+			lang = chunk.get("language") or meta.get("language") or "en"
 			sym_type = chunk.get("symbol_type") or meta.get("symbol_type") or "section"
 			text = LLMGenerator.clean_chunk_text(chunk.get("text", ""))
 			blocks.append(
-				f"--- Source [{idx}] ---\n"
+				f"--- Source [{idx}] (lang={lang}) ---\n"
 				f"Section: {breadcrumb} ({sym_type})\n"
 				f"URL: {sec_url}\n"
 				f"Content:\n{text}"
@@ -130,7 +133,7 @@ class LLMGenerator(BaseGenerator):
 
 	@staticmethod
 	def format_extractive_fallback(query: str, context: List[Dict[str, Any]]) -> str:
-		"""Build a clean, readable documentation answer from top reranked chunks when LLM_API_KEY is unset."""
+		"""Build a clean, readable documentation answer from top reranked chunks when LLM is unavailable."""
 		if not context:
 			return f"По запросу «{query}» ничего не найдено в документации FastAPI."
 
@@ -162,14 +165,20 @@ class LLMGenerator(BaseGenerator):
 		query: str,
 		context: List[Dict[str, Any]],
 		history: Optional[List[Dict[str, str]]] = None,
+		language: Optional[str] = None,
 	) -> List[Dict[str, str]]:
 		"""Construct system, conversation history, and user messages for chat completion."""
 		formatted_context = self.format_context(context)
+		lang_hint = ""
+		if language and language.lower() != "all":
+			lang_label = LANGUAGE_LABELS.get(language.lower(), language)
+			lang_hint = f"\nSelected documentation language: {lang_label}. Respond in the language of the user's question."
+
 		user_prompt = (
-			f"FastAPI Reference Context:\n{formatted_context}\n\n"
+			f"FastAPI Reference Context:\n{formatted_context}{lang_hint}\n\n"
 			f"User Question:\n{query}\n\n"
-			"Provide a clear, accurate answer based on the context above and include "
-			"the relevant documentation URLs."
+			"Provide a clear, well-structured Markdown answer with code examples based on the context above, "
+			"and cite the relevant documentation URLs."
 		)
 		messages: List[Dict[str, str]] = [
 			{"role": "system", "content": self.system_prompt}
@@ -188,11 +197,14 @@ class LLMGenerator(BaseGenerator):
 		query: str,
 		context: List[Dict[str, Any]],
 		history: Optional[List[Dict[str, str]]] = None,
+		language: Optional[str] = None,
 	) -> str:
 		"""Asynchronously generate an answer via AsyncOpenAI chat completions."""
 		response = await self.client.chat.completions.create(
 			model=self.model,
-			messages=self.build_messages(query, context, history=history),
+			messages=self.build_messages(
+				query, context, history=history, language=language
+			),
 			temperature=self.temperature,
 			max_tokens=self.max_tokens,
 		)
@@ -204,22 +216,34 @@ class LLMGenerator(BaseGenerator):
 		query: str,
 		context: List[Dict[str, Any]],
 		history: Optional[List[Dict[str, str]]] = None,
+		language: Optional[str] = None,
 	) -> str:
 		"""Generate an answer with session history, falling back to extractive output if no API key."""
 		if not self.has_valid_api_key():
 			return self.format_extractive_fallback(query=query, context=context)
-		return await self.generate(query=query, context=context, history=history)
+		try:
+			return await self.generate(
+				query=query,
+				context=context,
+				history=history,
+				language=language,
+			)
+		except Exception:
+			return self.format_extractive_fallback(query=query, context=context)
 
 	async def generate_stream(
 		self,
 		query: str,
 		context: List[Dict[str, Any]],
 		history: Optional[List[Dict[str, str]]] = None,
+		language: Optional[str] = None,
 	) -> AsyncGenerator[str, None]:
 		"""Asynchronously stream response tokens via AsyncOpenAI chat completions."""
 		stream = await self.client.chat.completions.create(
 			model=self.model,
-			messages=self.build_messages(query, context, history=history),
+			messages=self.build_messages(
+				query, context, history=history, language=language
+			),
 			temperature=self.temperature,
 			max_tokens=self.max_tokens,
 			stream=True,

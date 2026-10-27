@@ -107,6 +107,22 @@ class FastAPIHTMLParser:
 		clean_path = file_stem.replace("_", "/").strip("/")
 		return urljoin(config.reference_url, f"{clean_path}/") if clean_path else config.reference_url
 
+	@staticmethod
+	def extract_language(soup: BS, fallback_lang: str = "en") -> str:
+		"""Extract language code from `<html lang='...'>` or canonical URL."""
+		html_tag = soup.find("html")
+		if html_tag and html_tag.get("lang"):
+			lang_val = str(html_tag["lang"]).strip().lower()
+			if lang_val:
+				return lang_val
+		canonical = soup.find("link", rel="canonical")
+		if canonical and canonical.get("href"):
+			href = str(canonical["href"]).strip()
+			match = re.search(r"fastapi\.tiangolo\.com/([a-z]{2}(?:-[a-z]+)?)/reference/", href, re.I)
+			if match:
+				return match.group(1).lower()
+		return fallback_lang.strip().lower() or "en"
+
 	def parse_toc_sidebar(self, soup: BS) -> List[Dict[str, Any]]:
 		"""Parse `md-sidebar__scrollwrap` inside `md-sidebar--secondary` to get TOC pieces."""
 		secondary_sidebar = soup.find("div", class_="md-sidebar--secondary")
@@ -215,11 +231,13 @@ class FastAPIHTMLParser:
 		html_content: str,
 		doc_url: Optional[str] = None,
 		fallback_title: str = "",
+		language: Optional[str] = None,
 	) -> Dict[str, Any]:
 		"""Parse an HTML document into metadata, TOC list, and structured section chunks."""
 		soup = BS(html_content, "html.parser")
 		doc_title = self.extract_doc_title(soup, fallback_name=fallback_title)
 		base_url = doc_url or self.extract_canonical_url(soup, file_stem=fallback_title)
+		detected_lang = (language or self.extract_language(soup)).strip().lower() or "en"
 		toc_list = self.parse_toc_sidebar(soup)
 		toc_map = {item["anchor"]: item for item in toc_list}
 
@@ -330,6 +348,7 @@ class FastAPIHTMLParser:
 			base_meta = {
 				"doc_title": sec["doc_title"],
 				"doc_url": sec["doc_url"],
+				"language": detected_lang,
 				"section_title": sec["section_title"],
 				"anchor": sec["anchor"],
 				"section_url": sec["section_url"],
@@ -340,6 +359,7 @@ class FastAPIHTMLParser:
 
 			if len(full_sec_text) <= self.chunker.chunk_size:
 				chunks.append({
+					"language": detected_lang,
 					"section_title": sec["section_title"],
 					"anchor": sec["anchor"],
 					"section_url": sec["section_url"],
@@ -356,6 +376,7 @@ class FastAPIHTMLParser:
 					sc_meta["start_idx"] = sc["start_idx"]
 					sc_meta["end_idx"] = sc["end_idx"]
 					chunks.append({
+						"language": detected_lang,
 						"section_title": sec["section_title"],
 						"anchor": sec["anchor"],
 						"section_url": sec["section_url"],
@@ -368,6 +389,7 @@ class FastAPIHTMLParser:
 		return {
 			"title": doc_title,
 			"url": base_url,
+			"language": detected_lang,
 			"toc": toc_list,
 			"sections": sections,
 			"chunks": chunks,
@@ -378,19 +400,30 @@ class FastAPIHTMLParser:
 		html_content: str,
 		doc_url: Optional[str] = None,
 		fallback_title: str = "",
+		language: Optional[str] = None,
 	) -> Dict[str, Any]:
 		"""Asynchronously parse HTML document sections."""
 		return await asyncio.to_thread(
-			self.parse_html_sections, html_content, doc_url, fallback_title
+			self.parse_html_sections, html_content, doc_url, fallback_title, language
 		)
 
-	def parse_file(self, file_path: Path, doc_url: Optional[str] = None) -> Dict[str, Any]:
+	def parse_file(
+		self,
+		file_path: Path,
+		doc_url: Optional[str] = None,
+		language: Optional[str] = None,
+	) -> Dict[str, Any]:
 		"""Parse an HTML file from disk into structured document metadata, TOC, and chunks."""
 		html = file_path.read_text(encoding="utf-8")
+		parent_name = file_path.parent.name.lower()
+		inferred_lang = language or (
+			parent_name if parent_name in set(config.get_languages()) else None
+		)
 		parsed = self.parse_html_sections(
 			html_content=html,
 			doc_url=doc_url,
 			fallback_title=file_path.stem,
+			language=inferred_lang,
 		)
 		parsed["file_path"] = str(file_path)
 		for ch in parsed["chunks"]:
@@ -398,10 +431,13 @@ class FastAPIHTMLParser:
 		return parsed
 
 	async def parse_file_async(
-		self, file_path: Path, doc_url: Optional[str] = None
+		self,
+		file_path: Path,
+		doc_url: Optional[str] = None,
+		language: Optional[str] = None,
 	) -> Dict[str, Any]:
 		"""Asynchronously read and parse an HTML file from disk."""
-		return await asyncio.to_thread(self.parse_file, file_path, doc_url)
+		return await asyncio.to_thread(self.parse_file, file_path, doc_url, language)
 
 
 class HTMLCleaner:

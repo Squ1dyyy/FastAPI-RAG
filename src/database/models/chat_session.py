@@ -9,7 +9,7 @@ from .base import Base, TimestampMixin
 
 
 class ChatSession(Base, TimestampMixin):
-	"""Represents a persistent user chat session with conversation history."""
+	"""Represents a persistent user chat session with conversation history and language preference."""
 
 	__tablename__ = "chat_sessions"
 
@@ -19,6 +19,7 @@ class ChatSession(Base, TimestampMixin):
 		default=lambda: str(uuid.uuid4()),
 	)
 	title: Mapped[str] = mapped_column(String(255), nullable=False, default="New Chat")
+	language: Mapped[str] = mapped_column(String(16), nullable=False, default="ru", index=True)
 
 	messages: Mapped[List["ChatMessage"]] = relationship(
 		"ChatMessage",
@@ -29,7 +30,10 @@ class ChatSession(Base, TimestampMixin):
 	)
 
 	def __repr__(self) -> str:
-		return f"<ChatSession(id='{self.id}', title='{self.title}', messages={len(self.messages)})>"
+		return (
+			f"<ChatSession(id='{self.id}', lang='{self.language}', "
+			f"title='{self.title}', messages={len(self.messages)})>"
+		)
 
 
 class ChatMessage(Base, TimestampMixin):

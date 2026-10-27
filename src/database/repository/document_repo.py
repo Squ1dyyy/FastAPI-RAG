@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,16 +29,24 @@ class DocumentRepository:
 		file_path: Optional[str] = None,
 		toc_sections: Optional[List[Dict[str, Any]]] = None,
 		chunks_data: Optional[List[Dict[str, Any]]] = None,
+		language: str = "en",
 	) -> Document:
-		"""Save or update a document, its TOC sections, and its structural text chunks."""
+		"""Save or update a document, its language, TOC sections, and structural text chunks."""
 		doc = await self.get_by_url(url)
+		doc_lang = (language or "en").strip().lower()
 
 		chunks = []
 		for idx, chunk_item in enumerate(chunks_data or []):
 			meta = chunk_item.get("metadata", {})
+			ch_lang = (
+				chunk_item.get("language")
+				or meta.get("language")
+				or doc_lang
+			).strip().lower()
 			chunks.append(
 				DocumentChunk(
 					chunk_index=idx,
+					language=ch_lang,
 					section_title=chunk_item.get("section_title") or meta.get("section_title"),
 					anchor=chunk_item.get("anchor") or meta.get("anchor"),
 					section_url=chunk_item.get("section_url") or meta.get("section_url") or url,
@@ -46,7 +54,7 @@ class DocumentRepository:
 					symbol_type=chunk_item.get("symbol_type") or meta.get("symbol_type") or "section",
 					text=chunk_item["text"],
 					embedding=chunk_item.get("embedding"),
-					metadata_json=meta,
+					metadata_json={**meta, "language": ch_lang},
 				)
 			)
 
@@ -54,6 +62,7 @@ class DocumentRepository:
 			doc = Document(
 				title=title,
 				url=url,
+				language=doc_lang,
 				file_path=file_path,
 				toc_sections=toc_sections or [],
 				chunks=chunks,
@@ -61,6 +70,7 @@ class DocumentRepository:
 			self.session.add(doc)
 		else:
 			doc.title = title
+			doc.language = doc_lang
 			doc.file_path = file_path
 			if toc_sections is not None:
 				doc.toc_sections = toc_sections
@@ -75,44 +85,89 @@ class DocumentRepository:
 		await self.session.flush()
 		return doc
 
-	async def get_all_chunks_for_indexing(self) -> List[Dict[str, Any]]:
-		"""Retrieve all document chunks formatted for BM25-Fast and Dense E5 retrievers.
+	async def get_language_counts(self) -> Dict[str, int]:
+		"""Return a mapping of language code to number of indexed chunks in DB."""
+		stmt = select(DocumentChunk.language, func.count(DocumentChunk.id)).group_by(
+			DocumentChunk.language
+		)
+		result = await self.session.execute(stmt)
+		return {str(lang): int(cnt) for lang, cnt in result.all()}
 
-		:return: List of dicts with 'id', 'text', 'embedding', 'section_title', 'anchor',
-		         'section_url', 'breadcrumb', and 'metadata'.
-		"""
+	async def get_all_chunks_for_indexing(
+		self,
+		language: Optional[str] = None,
+	) -> List[Dict[str, Any]]:
+		"""Retrieve document chunks formatted for BM25-Fast and Dense E5 retrievers."""
 		stmt = (
-			select(DocumentChunk, Document)
+			select(
+				DocumentChunk.id,
+				DocumentChunk.document_id,
+				DocumentChunk.chunk_index,
+				DocumentChunk.language,
+				DocumentChunk.section_title,
+				DocumentChunk.anchor,
+				DocumentChunk.section_url,
+				DocumentChunk.breadcrumb,
+				DocumentChunk.symbol_type,
+				DocumentChunk.text,
+				DocumentChunk.embedding,
+				DocumentChunk.metadata_json,
+				Document.title,
+				Document.url,
+			)
 			.join(Document, DocumentChunk.document_id == Document.id)
 			.order_by(DocumentChunk.document_id, DocumentChunk.chunk_index)
 		)
+		if language and language.lower() != "all":
+			stmt = stmt.where(DocumentChunk.language == language.strip().lower())
+
 		result = await self.session.execute(stmt)
 
 		corpus = []
-		for chunk, doc in result.all():
+		for row in result.all():
+			(
+				ch_id,
+				doc_id,
+				ch_idx,
+				ch_lang_raw,
+				sec_title,
+				anchor,
+				sec_url,
+				breadcrumb,
+				sym_type,
+				text,
+				embedding,
+				meta_json,
+				doc_title,
+				doc_url,
+			) = row
+			ch_lang = ch_lang_raw or "en"
+			meta_dict = meta_json if isinstance(meta_json, dict) else {}
 			corpus.append({
-				"id": f"doc_{doc.id}_chunk_{chunk.chunk_index}",
-				"chunk_id": chunk.id,
-				"document_id": doc.id,
-				"doc_title": doc.title,
-				"doc_url": doc.url,
-				"section_title": chunk.section_title or doc.title,
-				"anchor": chunk.anchor or "",
-				"section_url": chunk.section_url or doc.url,
-				"breadcrumb": chunk.breadcrumb or doc.title,
-				"symbol_type": chunk.symbol_type or "section",
-				"text": chunk.text,
-				"embedding": chunk.embedding,
+				"id": f"doc_{doc_id}_chunk_{ch_idx}",
+				"chunk_id": ch_id,
+				"document_id": doc_id,
+				"language": ch_lang,
+				"doc_title": doc_title,
+				"doc_url": doc_url,
+				"section_title": sec_title or doc_title,
+				"anchor": anchor or "",
+				"section_url": sec_url or doc_url,
+				"breadcrumb": breadcrumb or doc_title,
+				"symbol_type": sym_type or "section",
+				"text": text,
+				"embedding": embedding,
 				"metadata": {
-					**chunk.metadata_json,
-					"doc_title": doc.title,
-					"doc_url": doc.url,
-					"section_title": chunk.section_title or doc.title,
-					"anchor": chunk.anchor or "",
-					"section_url": chunk.section_url or doc.url,
-					"breadcrumb": chunk.breadcrumb or doc.title,
-					"symbol_type": chunk.symbol_type or "section",
-					"chunk_index": chunk.chunk_index,
+					**meta_dict,
+					"language": ch_lang,
+					"doc_title": doc_title,
+					"doc_url": doc_url,
+					"section_title": sec_title or doc_title,
+					"anchor": anchor or "",
+					"section_url": sec_url or doc_url,
+					"breadcrumb": breadcrumb or doc_title,
+					"symbol_type": sym_type or "section",
+					"chunk_index": ch_idx,
 				},
 			})
 		return corpus

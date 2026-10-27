@@ -42,9 +42,14 @@ async def main():
 		print(f"Successfully ingested {total_chunks} chunks with GPU E5 embeddings into the database.")
 
 		repo = DocumentRepository(session)
-		corpus = await repo.get_all_chunks_for_indexing()
-		has_emb = sum(1 for c in corpus if c.get("embedding"))
-		print(f"Verified DB records: {len(corpus)} chunks loaded ({has_emb} with 384-d E5 vectors).")
+		lang_counts = await repo.get_language_counts()
+		sample_corpus = await repo.get_all_chunks_for_indexing(language=config.default_language)
+		has_emb = sum(1 for c in sample_corpus if c.get("embedding"))
+		print(
+			f"Verified DB records: {sum(lang_counts.values())} total chunks across "
+			f"{len(lang_counts)} languages {lang_counts} "
+			f"({has_emb}/{len(sample_corpus)} with 384-d E5 vectors in '{config.default_language}')."
+		)
 
 	await engine.dispose()
 

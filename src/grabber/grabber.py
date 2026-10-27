@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from pathlib import Path
 from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
@@ -8,9 +10,25 @@ from curl_cffi import AsyncSession
 
 from configs.config import config
 
+LANGUAGE_LABELS: Dict[str, str] = {
+	"en": "en - English",
+	"de": "de - Deutsch",
+	"es": "es - español",
+	"fr": "fr - français",
+	"hi": "hi - हिन्दी",
+	"ja": "ja - 日本語",
+	"ko": "ko - 한국어",
+	"pt": "pt - português",
+	"ru": "ru - русский язык",
+	"tr": "tr - Türkçe",
+	"uk": "uk - українська мова",
+	"zh": "zh - 简体中文",
+	"zh-hant": "zh-hant - 繁體中文",
+}
+
 
 class Grabber:
-	"""Asynchronous web grabber for FastAPI reference documentation pages."""
+	"""Asynchronous multi-language web grabber for FastAPI reference documentation pages."""
 
 	def __init__(
 		self,
@@ -18,13 +36,67 @@ class Grabber:
 		reference_url: Optional[str] = None,
 		impersonate: Optional[str] = None,
 		concurrency: Optional[int] = None,
+		language: str = "en",
 	):
+		self.language = language.strip().lower() or "en"
 		self.path_to_data = Path(path) if path is not None else config.data_dir
-		self.reference_url = reference_url or config.reference_url
+		self.reference_url = reference_url or self.build_reference_url(self.language)
 		self.impersonate = impersonate or config.browser_impersonate
 		self.concurrency = concurrency or config.grabber_concurrency
 		self.cached_path = self.path_to_data / config.cached_routers_filename
 		self.soup: Optional[BS] = None
+
+	@staticmethod
+	def build_reference_url(language: str) -> str:
+		"""Construct the FastAPI reference base URL for a given language code."""
+		lang = language.strip().strip("/").lower()
+		if not lang or lang == "en":
+			return "https://fastapi.tiangolo.com/reference/"
+		return f"https://fastapi.tiangolo.com/{lang}/reference/"
+
+	@classmethod
+	def for_language(
+		cls,
+		language: str,
+		base_data_dir: Optional[Union[Path, str]] = None,
+		impersonate: Optional[str] = None,
+		concurrency: Optional[int] = None,
+	) -> "Grabber":
+		"""Create a Grabber instance targeting a language-specific subdirectory `data/{lang}/`."""
+		root_dir = Path(base_data_dir) if base_data_dir is not None else config.data_dir
+		lang_code = language.strip().lower() or "en"
+		lang_dir = root_dir / lang_code
+		return cls(
+			path=lang_dir,
+			reference_url=cls.build_reference_url(lang_code),
+			impersonate=impersonate,
+			concurrency=concurrency,
+			language=lang_code,
+		)
+
+	@staticmethod
+	def extract_language_variations(soup: BS) -> List[Dict[str, str]]:
+		"""Extract all language variations from `.md-select__link` in FastAPI HTML."""
+		variations: List[Dict[str, str]] = []
+		seen = set()
+		for link in soup.select(".md-select__link"):
+			href = (link.get("href") or "").strip()
+			label = link.get_text(strip=True)
+			code = href.strip("/") or "en"
+			if not code and " - " in label:
+				code = label.split(" - ", 1)[0].strip()
+			if code in seen:
+				continue
+			seen.add(code)
+			variations.append(
+				{
+					"code": code,
+					"label": label or LANGUAGE_LABELS.get(code, code),
+					"href": href or "/",
+					"reference_url": Grabber.build_reference_url(code),
+				}
+			)
+		return variations
 
 	async def _get_html_site(self, url: str, session: Optional[AsyncSession] = None) -> BS:
 		"""Fetch HTML from the specified URL and return a BeautifulSoup object."""
@@ -38,7 +110,7 @@ class Grabber:
 			res.raise_for_status()
 			return await asyncio.to_thread(BS, res.text, "html.parser")
 
-	async def _load_soup(self):
+	async def _load_soup(self, session: Optional[AsyncSession] = None):
 		"""Load the main reference page from cache or download it asynchronously."""
 		if self.cached_path.is_file():
 			html = await asyncio.to_thread(self.cached_path.read_text, "utf-8")
@@ -46,9 +118,9 @@ class Grabber:
 				self.soup = await asyncio.to_thread(BS, html, "html.parser")
 				return
 
-		self.soup = await self._get_html_site(self.reference_url)
+		self.soup = await self._get_html_site(self.reference_url, session=session)
 		await asyncio.to_thread(self.cached_path.parent.mkdir, parents=True, exist_ok=True)
-		await asyncio.to_thread(self.cached_path.write_text, str(self.soup), "utf-8")
+		await asyncio.to_thread(self.cached_path.write_text, str(self.soup), "html.parser" if False else "utf-8")
 
 	def _get_all_sources(self) -> List[Tuple[str, str]]:
 		"""Extract documentation navigation links from the active section."""
@@ -102,6 +174,7 @@ class Grabber:
 			"title": text,
 			"url": full_url,
 			"file_path": cur_file,
+			"language": self.language,
 			"html": html_content,
 		}
 
@@ -119,30 +192,65 @@ class Grabber:
 				item = await self._process_single_source(path, text, session, semaphore)
 				yield item
 
-	async def fetch_all_sources_concurrently(self) -> List[Dict[str, Union[str, Path]]]:
+	async def fetch_all_sources_concurrently(
+		self,
+		session: Optional[AsyncSession] = None,
+		semaphore: Optional[asyncio.Semaphore] = None,
+	) -> List[Dict[str, Union[str, Path]]]:
 		"""Fetch and cache all documentation sources concurrently using asyncio.gather."""
-		if self.soup is None:
-			await self._load_soup()
-
-		sources = self._get_all_sources()
 		await asyncio.to_thread(self.path_to_data.mkdir, parents=True, exist_ok=True)
-		semaphore = asyncio.Semaphore(self.concurrency)
+		active_sem = semaphore or asyncio.Semaphore(self.concurrency)
 
-		async with AsyncSession(impersonate=self.impersonate) as session:
+		if session is not None:
+			if self.soup is None:
+				await self._load_soup(session=session)
+			sources = self._get_all_sources()
 			tasks = [
-				self._process_single_source(path, text, session, semaphore)
+				self._process_single_source(path, text, session, active_sem)
 				for path, text in sources
 			]
 			return list(await asyncio.gather(*tasks))
 
+		async with AsyncSession(impersonate=self.impersonate) as own_session:
+			if self.soup is None:
+				await self._load_soup(session=own_session)
+			sources = self._get_all_sources()
+			tasks = [
+				self._process_single_source(path, text, own_session, active_sem)
+				for path, text in sources
+			]
+			return list(await asyncio.gather(*tasks))
+
+	@classmethod
+	async def scrape_all_languages(
+		cls,
+		languages: Optional[List[str]] = None,
+		base_data_dir: Optional[Union[Path, str]] = None,
+		concurrency: int = 12,
+	) -> Dict[str, List[Dict[str, Union[str, Path]]]]:
+		"""Scrape and cache all FastAPI reference pages across all language variations into `data/{lang}/`."""
+		target_langs = languages or config.get_languages()
+		root_dir = Path(base_data_dir) if base_data_dir is not None else config.data_dir
+		sem = asyncio.Semaphore(concurrency)
+		results: Dict[str, List[Dict[str, Union[str, Path]]]] = {}
+
+		async with AsyncSession(impersonate=config.browser_impersonate) as shared_session:
+			async def _scrape_lang(lang_code: str):
+				g = cls.for_language(
+					language=lang_code,
+					base_data_dir=root_dir,
+					concurrency=concurrency,
+				)
+				pages = await g.fetch_all_sources_concurrently(
+					session=shared_session,
+					semaphore=sem,
+				)
+				results[lang_code] = pages
+
+			await asyncio.gather(*[_scrape_lang(lang) for lang in target_langs])
+
+		return results
+
 
 Scraper = Grabber
-
-
-if __name__ == "__main__":
-	async def main():
-		grabber = Grabber()
-		async for item in grabber.parsing_all_sources():
-			print(f"{item['title']} -> {item['file_path']}")
-
-	asyncio.run(main())
+AsyncGrabber = Grabber

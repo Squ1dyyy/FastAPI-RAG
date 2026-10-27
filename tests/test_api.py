@@ -62,11 +62,13 @@ class MockAPIGenerator(BaseGenerator):
 		query: str,
 		context: List[Dict[str, Any]],
 		history: Optional[List[Dict[str, str]]] = None,
+		language: Optional[str] = None,
 	) -> str:
 		top = context[0] if context else {}
 		turns = len(history) if history else 0
+		lang_tag = language or "ru"
 		return (
-			f"[history_turns={turns}] Answer for '{query}' "
+			f"[lang={lang_tag}][history_turns={turns}] Answer for '{query}' "
 			f"citing {top.get('section_url', '')}"
 		)
 
@@ -125,6 +127,12 @@ class TestFastAPIChatService(unittest.IsolatedAsyncioTestCase):
 			data = health_res.json()
 			self.assertEqual(data["status"], "ok")
 			self.assertEqual(data["indexed_chunks"], 2)
+
+			lang_res = await client.get("/api/languages")
+			self.assertEqual(lang_res.status_code, 200)
+			langs = lang_res.json()
+			self.assertEqual(len(langs), 13)
+			self.assertEqual(langs[0]["code"], "en")
 
 	async def test_session_lifecycle_crud(self):
 		transport = ASGITransport(app=self.app)

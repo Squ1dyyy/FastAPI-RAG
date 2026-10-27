@@ -1,4 +1,4 @@
-"""Single-page HTML/JS interface for the FastAPI Hybrid RAG Chat with sessions and Markdown rendering."""
+"""Single-page HTML/JS interface for the Multi-Language FastAPI Hybrid RAG Chat."""
 
 CHAT_HTML = """<!DOCTYPE html>
 <html lang="ru">
@@ -17,7 +17,7 @@ body {
 	overflow: hidden;
 }
 .sidebar {
-	width: 280px;
+	width: 290px;
 	background: rgb(30, 41, 59);
 	border-right: 1px solid rgb(51, 65, 85);
 	display: flex;
@@ -30,6 +30,27 @@ body {
 	color: rgb(56, 189, 248);
 	margin-bottom: 12px;
 }
+.lang-box {
+	margin-bottom: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+.lang-label {
+	font-size: 12px;
+	color: rgb(148, 163, 184);
+	font-weight: 600;
+}
+.lang-select {
+	width: 100%;
+	padding: 8px 10px;
+	border-radius: 8px;
+	border: 1px solid rgb(71, 85, 105);
+	background: rgb(15, 23, 42);
+	color: rgb(226, 232, 240);
+	font-size: 13.5px;
+	cursor: pointer;
+}
 .new-chat-btn {
 	background: rgb(14, 165, 233);
 	color: white;
@@ -38,7 +59,7 @@ body {
 	border-radius: 8px;
 	font-weight: 600;
 	cursor: pointer;
-	margin-bottom: 16px;
+	margin-bottom: 14px;
 	transition: opacity 0.15s;
 }
 .new-chat-btn:hover { opacity: 0.9; }
@@ -68,7 +89,16 @@ body {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-width: 190px;
+	max-width: 170px;
+}
+.lang-pill {
+	font-size: 10px;
+	background: rgb(51, 65, 85);
+	color: rgb(186, 230, 253);
+	padding: 2px 6px;
+	border-radius: 4px;
+	text-transform: uppercase;
+	margin-left: 6px;
 }
 .delete-btn {
 	background: transparent;
@@ -254,6 +284,24 @@ body {
 <body>
 <div class="sidebar">
 	<div class="brand">FastAPI Hybrid RAG</div>
+	<div class="lang-box">
+		<label class="lang-label" for="languageSelect">Язык документации:</label>
+		<select id="languageSelect" class="lang-select" onchange="onLanguageChange()">
+			<option value="en">en - English</option>
+			<option value="de">de - Deutsch</option>
+			<option value="es">es - español</option>
+			<option value="fr">fr - français</option>
+			<option value="hi">hi - हिन्दी</option>
+			<option value="ja">ja - 日本語</option>
+			<option value="ko">ko - 한국어</option>
+			<option value="pt">pt - português</option>
+			<option value="ru" selected>ru - русский язык</option>
+			<option value="tr">tr - Türkçe</option>
+			<option value="uk">uk - українська мова</option>
+			<option value="zh">zh - 简体中文</option>
+			<option value="zh-hant">zh-hant - 繁體中文</option>
+		</select>
+	</div>
 	<button class="new-chat-btn" onclick="createNewSession()">+ Новая сессия</button>
 	<div class="sessions-list" id="sessionsList"></div>
 	<div class="status-box" id="statusBox">Загрузка статуса...</div>
@@ -271,6 +319,19 @@ body {
 </div>
 <script>
 let activeSessionId = null;
+
+function getSelectedLanguage() {
+	const sel = document.getElementById('languageSelect');
+	return sel ? sel.value : 'ru';
+}
+
+function onLanguageChange() {
+	const lang = getSelectedLanguage();
+	const badge = document.getElementById('sessionBadge');
+	if (activeSessionId && badge) {
+		badge.textContent = `Session: ${activeSessionId.slice(0, 8)} · Lang: ${lang.toUpperCase()}`;
+	}
+}
 
 function escapeHtml(str) {
 	return String(str)
@@ -387,14 +448,40 @@ async function loadStatus() {
 	try {
 		const res = await fetch('/api/health');
 		const data = await res.json();
+		const langCount = data.languages ? data.languages.length : 13;
 		document.getElementById('statusBox').innerHTML =
 			`Device: <b>${data.device}</b><br>` +
-			`Chunks: <b>${data.indexed_chunks}</b><br>` +
-			`Dense: ${data.embedding_model}<br>` +
-			`Reranker: ${data.reranker_model}`;
+			`Chunks: <b>${data.indexed_chunks}</b> (${langCount} langs)<br>` +
+			`LLM: <b>${data.llm_model}</b><br>` +
+			`Dense: ${data.embedding_model}`;
 	} catch (e) {
 		document.getElementById('statusBox').innerText = 'Ошибка подключения';
 	}
+}
+
+function renderSessionItem(s, container) {
+	const div = document.createElement('div');
+	div.className = 'session-item' + (s.id === activeSessionId ? ' active' : '');
+	div.onclick = () => selectSession(s.id);
+	const leftWrap = document.createElement('div');
+	leftWrap.style.display = 'flex';
+	leftWrap.style.alignItems = 'center';
+	const titleSpan = document.createElement('span');
+	titleSpan.className = 'session-title';
+	titleSpan.textContent = s.title || 'New Chat';
+	const langPill = document.createElement('span');
+	langPill.className = 'lang-pill';
+	langPill.textContent = s.language || 'ru';
+	leftWrap.appendChild(titleSpan);
+	leftWrap.appendChild(langPill);
+
+	const delBtn = document.createElement('button');
+	delBtn.className = 'delete-btn';
+	delBtn.textContent = '✕';
+	delBtn.onclick = (ev) => { ev.stopPropagation(); deleteSession(s.id); };
+	div.appendChild(leftWrap);
+	div.appendChild(delBtn);
+	container.appendChild(div);
 }
 
 async function loadSessions() {
@@ -402,21 +489,7 @@ async function loadSessions() {
 	const sessions = await res.json();
 	const container = document.getElementById('sessionsList');
 	container.innerHTML = '';
-	sessions.forEach(s => {
-		const div = document.createElement('div');
-		div.className = 'session-item' + (s.id === activeSessionId ? ' active' : '');
-		div.onclick = () => selectSession(s.id);
-		const titleSpan = document.createElement('span');
-		titleSpan.className = 'session-title';
-		titleSpan.textContent = s.title || 'New Chat';
-		const delBtn = document.createElement('button');
-		delBtn.className = 'delete-btn';
-		delBtn.textContent = '✕';
-		delBtn.onclick = (ev) => { ev.stopPropagation(); deleteSession(s.id); };
-		div.appendChild(titleSpan);
-		div.appendChild(delBtn);
-		container.appendChild(div);
-	});
+	sessions.forEach(s => renderSessionItem(s, container));
 	if (!activeSessionId && sessions.length > 0) {
 		await selectSession(sessions[0].id);
 	} else if (sessions.length === 0) {
@@ -428,7 +501,10 @@ async function createNewSession() {
 	const res = await fetch('/api/sessions', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ title: 'New Chat' })
+		body: JSON.stringify({
+			title: 'New Chat',
+			language: getSelectedLanguage()
+		})
 	});
 	const s = await res.json();
 	activeSessionId = s.id;
@@ -449,8 +525,12 @@ async function selectSession(sessionId) {
 	const res = await fetch(`/api/sessions/${sessionId}`);
 	if (!res.ok) return;
 	const detail = await res.json();
+	if (detail.language) {
+		document.getElementById('languageSelect').value = detail.language;
+	}
 	document.getElementById('currentSessionTitle').textContent = detail.title;
-	document.getElementById('sessionBadge').textContent = `Session: ${detail.id.slice(0, 8)}`;
+	document.getElementById('sessionBadge').textContent =
+		`Session: ${detail.id.slice(0, 8)} · Lang: ${(detail.language || 'ru').toUpperCase()}`;
 	const container = document.getElementById('messagesContainer');
 	container.innerHTML = '';
 	detail.messages.forEach(m => appendMessageElement(m.role, m.content, m.sources, m.metrics));
@@ -462,21 +542,7 @@ async function loadSessionsWithoutSelect() {
 	const sessions = await res.json();
 	const container = document.getElementById('sessionsList');
 	container.innerHTML = '';
-	sessions.forEach(s => {
-		const div = document.createElement('div');
-		div.className = 'session-item' + (s.id === activeSessionId ? ' active' : '');
-		div.onclick = () => selectSession(s.id);
-		const titleSpan = document.createElement('span');
-		titleSpan.className = 'session-title';
-		titleSpan.textContent = s.title || 'New Chat';
-		const delBtn = document.createElement('button');
-		delBtn.className = 'delete-btn';
-		delBtn.textContent = '✕';
-		delBtn.onclick = (ev) => { ev.stopPropagation(); deleteSession(s.id); };
-		div.appendChild(titleSpan);
-		div.appendChild(delBtn);
-		container.appendChild(div);
-	});
+	sessions.forEach(s => renderSessionItem(s, container));
 }
 
 function appendMessageElement(role, content, sources = [], metrics = {}) {
@@ -547,6 +613,7 @@ async function sendMessage(e) {
 			body: JSON.stringify({
 				query: query,
 				session_id: activeSessionId,
+				language: getSelectedLanguage(),
 				top_k: 5,
 				rerank: true
 			})

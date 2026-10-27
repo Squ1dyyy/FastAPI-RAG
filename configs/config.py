@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -48,8 +50,8 @@ class Config(BaseSettings):
 	use_reranker: bool = True
 
 	llm_api_key: str = ""
-	llm_base_url: str = "https://openrouter.ai/api/v1"
-	llm_model: str = "openai/gpt-4o-mini"
+	llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
+	llm_model: str = "gemini-3.1-flash-lite"
 	llm_temperature: float = 0.2
 	llm_max_tokens: int = 1024
 	llm_timeout: float = 60.0
@@ -59,9 +61,16 @@ class Config(BaseSettings):
 		"Always cite the exact section title and URL for your claims."
 	)
 
+	supported_languages: str = "en,de,es,fr,hi,ja,ko,pt,ru,tr,uk,zh,zh-hant"
+	default_language: str = "ru"
+
 	app_host: str = "127.0.0.1"
 	app_port: int = 8000
 	chat_history_limit: int = 10
+
+	def get_languages(self) -> list[str]:
+		"""Return list of configured documentation language codes."""
+		return [lang.strip() for lang in self.supported_languages.split(",") if lang.strip()]
 
 	def resolve_device(self) -> str:
 		"""Return configured device ('cuda' when CUDA GPU is available, otherwise 'cpu')."""

@@ -11,6 +11,7 @@ from configs.config import config
 from src.api.schemas import (
 	ChatRequest,
 	ChatResponse,
+	LanguageOut,
 	MessageOut,
 	SessionCreateRequest,
 	SessionDetailOut,
@@ -23,7 +24,7 @@ from src.database.repository import ChatSessionRepository
 from src.pipeline import HybridRAGPipeline
 
 
-async def _resolve_engine_and_session() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
+async def _resolve_engine_and_session() -> Tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
 	"""Connect to PostgreSQL or fall back to local async SQLite database."""
 	engine, factory = create_engine_and_session(
 		database_url=config.postgres_url,
@@ -101,15 +102,27 @@ def create_app(
 	async def health(
 		rag_pipeline: HybridRAGPipeline = Depends(get_pipeline),
 	) -> dict:
-		"""Return service health, active compute device, and indexed chunk count."""
+		"""Return service health, active compute device, languages, and indexed chunk count."""
 		return {
 			"status": "ok",
 			"device": config.resolve_device(),
-			"indexed_chunks": len(rag_pipeline.corpus),
+			"indexed_chunks": rag_pipeline.get_total_indexed_chunks(),
+			"languages": rag_pipeline.get_available_languages(),
+			"default_language": config.default_language,
 			"embedding_model": config.embedding_model_name,
 			"reranker_model": config.reranker_model_name,
 			"llm_model": config.llm_model,
 		}
+
+	@app.get("/api/languages", response_model=List[LanguageOut])
+	async def list_languages(
+		rag_pipeline: HybridRAGPipeline = Depends(get_pipeline),
+	) -> List[LanguageOut]:
+		"""List all 13 supported documentation language variations and their chunk counts."""
+		return [
+			LanguageOut(**item)
+			for item in rag_pipeline.get_available_languages()
+		]
 
 	@app.post("/api/sessions", response_model=SessionSummaryOut)
 	async def create_session(
@@ -121,11 +134,13 @@ def create_app(
 		chat_session = await repo.create_session(
 			session_id=payload.session_id,
 			title=payload.title,
+			language=payload.language,
 		)
 		await db.commit()
 		return SessionSummaryOut(
 			id=chat_session.id,
 			title=chat_session.title,
+			language=chat_session.language,
 			message_count=len(chat_session.messages),
 			created_at=chat_session.created_at.isoformat(),
 			updated_at=chat_session.updated_at.isoformat(),
@@ -142,6 +157,7 @@ def create_app(
 			SessionSummaryOut(
 				id=s.id,
 				title=s.title,
+				language=s.language,
 				message_count=len(s.messages),
 				created_at=s.created_at.isoformat(),
 				updated_at=s.updated_at.isoformat(),
@@ -162,6 +178,7 @@ def create_app(
 		return SessionDetailOut(
 			id=chat_session.id,
 			title=chat_session.title,
+			language=chat_session.language,
 			messages=[
 				MessageOut(
 					id=m.id,
@@ -196,9 +213,12 @@ def create_app(
 		db: AsyncSession = Depends(get_db),
 		rag_pipeline: HybridRAGPipeline = Depends(get_pipeline),
 	) -> ChatResponse:
-		"""Run Hybrid RAG search + reranking + LLM generation inside a persistent chat session."""
+		"""Run Hybrid RAG search + reranking + Gemini LLM generation inside a persistent chat session."""
 		repo = ChatSessionRepository(db)
-		chat_session = await repo.get_or_create_session(session_id=payload.session_id)
+		chat_session = await repo.get_or_create_session(
+			session_id=payload.session_id,
+			language=payload.language,
+		)
 
 		result = await rag_pipeline.answer(
 			query=payload.query,
@@ -206,10 +226,12 @@ def create_app(
 			rerank=payload.rerank,
 			session=db,
 			session_id=chat_session.id,
+			language=payload.language or chat_session.language,
 		)
 
 		return ChatResponse(
 			session_id=result["session_id"] or chat_session.id,
+			language=result.get("language") or chat_session.language,
 			query=result["query"],
 			answer=result["answer"],
 			sources=[SourceItem(**src) for src in result.get("sources", [])],
