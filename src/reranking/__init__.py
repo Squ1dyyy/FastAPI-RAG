@@ -1,3 +1,3 @@
-from .reranker import BaseReranker
+from .reranker import BaseReranker, CrossEncoderReranker
 
-__all__ = ["BaseReranker"]
+__all__ = ["BaseReranker", "CrossEncoderReranker"]

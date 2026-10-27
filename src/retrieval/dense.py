@@ -1,17 +1,20 @@
 import math
 from typing import Any, Dict, List, Optional
 
-from src.embeddings.embedder import BaseEmbedder
+import numpy as np
+
+from src.embeddings.embedder import BaseEmbedder, MultilingualE5Embedder
 from src.retrieval.base import BaseRetriever
 
 
 class DenseRetriever(BaseRetriever):
-	"""Vector-based dense retriever using dense embeddings and cosine similarity."""
+	"""Vector-based dense retriever using `multilingual-e5-small` and cosine similarity."""
 
-	def __init__(self, embedder: BaseEmbedder):
-		self.embedder = embedder
+	def __init__(self, embedder: Optional[BaseEmbedder] = None):
+		self.embedder = embedder or MultilingualE5Embedder()
 		self.corpus: List[Dict[str, Any]] = []
 		self.embeddings: List[List[float]] = []
+		self._matrix: Optional[np.ndarray] = None
 
 	@staticmethod
 	def _cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
@@ -24,33 +27,55 @@ class DenseRetriever(BaseRetriever):
 		return dot / (norm_a * norm_b)
 
 	def index(self, corpus: List[Dict[str, Any]]):
-		"""Embed documents and store them in the index.
+		"""Build dense vector index from corpus (reusing precomputed embeddings if present).
 
-		:param corpus: List of document dicts containing a 'text' field.
+		:param corpus: List of document chunk dicts containing 'text' and optional 'embedding'.
 		"""
 		self.corpus = corpus
-		texts = [doc.get("text", "") for doc in corpus]
-		self.embeddings = self.embedder.embed_documents(texts)
+		self.embeddings = []
+		self._matrix = None
+
+		if not corpus:
+			return
+
+		missing_indices = [
+			i for i, doc in enumerate(corpus)
+			if not doc.get("embedding")
+		]
+
+		if missing_indices:
+			texts_to_embed = [corpus[i].get("text", "") for i in missing_indices]
+			computed = self.embedder.embed_documents(texts_to_embed)
+			for idx, emb in zip(missing_indices, computed):
+				corpus[idx]["embedding"] = emb
+
+		self.embeddings = [doc["embedding"] for doc in corpus]
+
+		mat = np.asarray(self.embeddings, dtype=np.float32)
+		norms = np.linalg.norm(mat, axis=1, keepdims=True)
+		norms[norms == 0.0] = 1.0
+		self._matrix = mat / norms
 
 	def retrieve(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-		"""Retrieve top_k documents with highest cosine similarity."""
-		if not self.corpus or not self.embeddings:
+		"""Retrieve top_k documents with highest semantic cosine similarity."""
+		if not self.corpus or self._matrix is None:
 			return []
 
-		query_vec = self.embedder.embed_query(query)
-		scored_docs = []
+		query_vec = np.asarray(self.embedder.embed_query(query), dtype=np.float32)
+		q_norm = np.linalg.norm(query_vec)
+		if q_norm > 0.0:
+			query_vec = query_vec / q_norm
 
-		for doc_idx, doc_vec in enumerate(self.embeddings):
-			sim = self._cosine_similarity(query_vec, doc_vec)
-			scored_docs.append((doc_idx, sim))
-
-		sorted_docs = sorted(scored_docs, key=lambda x: x[1], reverse=True)[:top_k]
+		scores = np.dot(self._matrix, query_vec)
+		k = min(top_k, len(self.corpus))
+		top_indices = np.argsort(scores)[::-1][:k]
 
 		results = []
-		for doc_idx, score in sorted_docs:
-			doc = dict(self.corpus[doc_idx])
-			doc["score"] = score
-			doc["retriever"] = "dense"
+		for doc_idx in top_indices:
+			idx = int(doc_idx)
+			doc = dict(self.corpus[idx])
+			doc["score"] = float(scores[idx])
+			doc["retriever"] = "dense_e5"
 			results.append(doc)
 
 		return results

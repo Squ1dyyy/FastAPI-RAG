@@ -1,4 +1,4 @@
-"""Demo showing how to ingest scraped HTML documents into PostgreSQL with SQLAlchemy."""
+"""Ingest structural HTML sections and TOC from `data/` into PostgreSQL with SQLAlchemy."""
 import asyncio
 import sys
 from pathlib import Path
@@ -13,11 +13,10 @@ from src.database import (
 	create_engine_and_session,
 	init_db,
 )
-from src.preprocessing import HTMLCleaner, TextChunker
+from src.preprocessing import FastAPIHTMLParser
 
 
 async def main():
-	# Connect to PostgreSQL (or in-memory SQLite if Postgres isn't running)
 	db_url = config.postgres_url
 	print(f"Connecting to database: {db_url}")
 
@@ -26,40 +25,37 @@ async def main():
 		await init_db(engine)
 		print("Connected to PostgreSQL successfully.")
 	except Exception as exc:
-		print(f"PostgreSQL connection failed ({exc}). Falling back to local SQLite demo database.")
+		print(f"PostgreSQL connection failed ({exc}). Falling back to local SQLite database.")
 		engine, session_factory = create_engine_and_session("sqlite+aiosqlite:///data/rag.db")
 		await init_db(engine)
 
-	cleaner = HTMLCleaner()
-	chunker = TextChunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)
-
-	data_files = list(config.data_dir.glob("*.html"))
-	print(f"Ingesting {len(data_files)} documentation files into database...")
+	parser = FastAPIHTMLParser()
+	data_files = sorted(config.data_dir.glob("*.html"))
+	print(f"Parsing structural sections (md-sidebar__scrollwrap + md-content__inner) from {len(data_files)} files...")
 
 	async with session_factory() as session:
 		repo = DocumentRepository(session)
-		count = 0
+		doc_count = 0
+		total_toc = 0
 		for f in data_files:
 			if f.name == "cached_routers.html":
 				continue
-			text = cleaner.clean_file(f)
-			chunks = chunker.split_text(text, metadata={"file": f.name})
-			title = f.stem.replace("_", " ").title()
-			url = f"https://fastapi.tiangolo.com/reference/{f.stem}/"
-
+			parsed = parser.parse_file(f)
 			await repo.save_document(
-				title=title,
-				url=url,
-				file_path=str(f),
-				chunks_data=chunks,
+				title=parsed["title"],
+				url=parsed["url"],
+				file_path=parsed["file_path"],
+				toc_sections=parsed["toc"],
+				chunks_data=parsed["chunks"],
 			)
-			count += 1
-		await session.commit()
-		print(f"Successfully ingested {count} documents into database.")
+			doc_count += 1
+			total_toc += len(parsed["toc"])
 
-		# Fetch all chunks back from DB for BM25 indexing
+		await session.commit()
+		print(f"Ingested {doc_count} documents ({total_toc} TOC items from md-sidebar__scrollwrap).")
+
 		corpus = await repo.get_all_chunks_for_indexing()
-		print(f"Retrieved {len(corpus)} chunks ready for BM25-Fast and Hybrid Retrieval indexing.")
+		print(f"Retrieved {len(corpus)} structural section chunks ready for Hybrid RAG indexing.")
 
 	await engine.dispose()
 

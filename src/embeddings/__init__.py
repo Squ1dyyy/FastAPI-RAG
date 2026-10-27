@@ -1,3 +1,3 @@
-from .embedder import BaseEmbedder
+from .embedder import BaseEmbedder, MultilingualE5Embedder
 
-__all__ = ["BaseEmbedder"]
+__all__ = ["BaseEmbedder", "MultilingualE5Embedder"]

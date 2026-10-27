@@ -1,78 +1,76 @@
 # RAG FastAPI Documentation Assistant
 
-RAG (Retrieval-Augmented Generation) pipeline for FastAPI documentation with Hybrid Retrieval (Dense + BM25-Fast) and PostgreSQL / SQLAlchemy 2.0.
+End-to-end **Hybrid RAG** pipeline for FastAPI reference documentation, powered by **BM25-Fast (`bm25s`)**, **`intfloat/multilingual-e5-small`**, **TinyBERT Cross-Encoder Reranker**, and **PostgreSQL + SQLAlchemy 2.0 (`asyncpg`)**.
 
 ## Project Structure
 
 ```text
 ├── README.md
 ├── requirements.txt
+├── .env.example
 ├── configs/
 │   ├── __init__.py
-│   └── config.py              # Centralized application settings (Pydantic BaseSettings)
+│   └── config.py              # Centralized settings (Pydantic BaseSettings)
 ├── src/
+│   ├── pipeline.py            # End-to-end HybridRAGPipeline
 │   ├── database/              # PostgreSQL + SQLAlchemy 2.0 (asyncpg)
 │   │   ├── connection.py      # AsyncEngine, sessionmaker, init_db, get_async_session
-│   │   ├── models/            # SQLAlchemy Declarative Models (Document, DocumentChunk, QueryLog)
+│   │   ├── models/            # Document (with toc_sections), DocumentChunk, QueryLog
 │   │   └── repository/        # DocumentRepository, QueryLogRepository
-│   ├── grabber/               # Web scraper and HTML cache for FastAPI docs
-│   ├── preprocessing/         # HTML cleaning, text extraction, and chunking
-│   ├── embeddings/            # Embedding interfaces and vectorizers
-│   ├── retrieval/             # Hybrid Retrieval: Dense + BM25-Fast
-│   │   ├── base.py            # BaseRetriever abstract class
-│   │   ├── sparse.py          # BM25-Fast (inverted index BM25 retriever)
-│   │   ├── dense.py           # Dense vector similarity retriever
-│   │   └── hybrid.py          # Hybrid fusion (RRF / Linear combination)
-│   ├── reranking/             # Cross-encoder candidate rerankers
-│   ├── generation/            # LLM answer synthesis and prompt templates
-│   └── evaluation/            # Evaluation metrics (faithfulness, relevance)
-├── data/                      # Cached raw HTML files and processed documents
-├── experiments/               # Benchmarks, experiment scripts, and notebooks
+│   ├── grabber/               # Async web scraper and HTML cache for FastAPI docs
+│   ├── preprocessing/         # Structural HTML parser (md-sidebar__scrollwrap + md-content__inner)
+│   ├── embeddings/            # MultilingualE5Embedder (intfloat/multilingual-e5-small)
+│   ├── retrieval/             # Hybrid Retrieval: Dense (E5) + Sparse (BM25-Fast)
+│   │   ├── base.py            # BaseRetriever interface
+│   │   ├── sparse.py          # BM25Retriever (bm25s + identifier tokenization)
+│   │   ├── dense.py           # DenseRetriever (E5 cosine similarity)
+│   │   └── hybrid.py          # HybridRetriever (RRF & Linear score fusion)
+│   ├── reranking/             # CrossEncoderReranker (cross-encoder/ms-marco-TinyBERT-L-2-v2)
+│   ├── generation/            # LLM answer synthesis interfaces
+│   └── evaluation/            # RAG evaluation metrics interfaces
+├── data/                      # Cached raw HTML documentation files
+├── experiments/               # Ingestion and Hybrid RAG search demos
 └── tests/                     # Unit and integration test suite
 ```
 
+## HTML Parsing & Database Schema Design
+
+FastAPI reference HTML pages (`data/*.html`) are parsed structurally by `FastAPIHTMLParser`:
+1. **Document Title (`Document.title`)**: Extracted from `<article class="md-content__inner md-typeset"> -> <h1>`.
+2. **Table of Contents (`Document.toc_sections`)**: Extracted from `<div class="md-sidebar--secondary"> -> <div class="md-sidebar__scrollwrap">`, preserving section anchors (`#...`), titles, and nesting hierarchy (`breadcrumb`).
+3. **Section Chunks (`DocumentChunk`)**: `<article class="md-content__inner md-typeset">` is split along section headings (`h1..h6[id]`) matching the TOC, storing:
+   - `section_title`, `anchor`, `section_url`, `breadcrumb`, `symbol_type` (`class`, `function`, `attribute`, `section`)
+   - Clean markdown-formatted `text` (signatures, descriptions, formatted parameter tables, code blocks)
+   - Precomputed 384-d `embedding` vector from `intfloat/multilingual-e5-small`
+   - `metadata_json` (`JSONB` in PostgreSQL)
+
 ## Quick Start
 
-### 1. Installation
+### 1. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
-
-Create `.env` file (or configure environment variables):
-
-```env
-POSTGRES_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/rag_fastapi
-POSTGRES_ECHO=false
-HYBRID_ALPHA=0.5
-HYBRID_FUSION_METHOD=rrf
-```
-
-### 3. Grab Documentation Data
-
-Run the grabber to download and cache the FastAPI reference documentation:
+### 2. Grab Documentation HTML
 
 ```bash
-python -m src.grabber.grabber
-# or
 python scraper.py
 ```
 
-### 4. Ingest Scraped Documents into Database
+### 3. Ingest Documents into PostgreSQL (or SQLite fallback)
 
 ```bash
 python experiments/database_ingest_demo.py
 ```
 
-### 5. Run Hybrid Search Demo
+### 4. Run Full Hybrid RAG Search + Reranking Demo
 
 ```bash
 python experiments/hybrid_search_demo.py
 ```
 
-### 6. Run Tests
+### 5. Run Tests
 
 ```bash
 python -m unittest discover tests

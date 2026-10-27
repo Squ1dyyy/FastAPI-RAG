@@ -1,3 +1,3 @@
-from .cleaner import HTMLCleaner, TextChunker
+from .cleaner import FastAPIHTMLParser, HTMLCleaner, TextChunker
 
-__all__ = ["HTMLCleaner", "TextChunker"]
+__all__ = ["FastAPIHTMLParser", "HTMLCleaner", "TextChunker"]

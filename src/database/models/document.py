@@ -8,7 +8,7 @@ from .base import Base, TimestampMixin
 
 
 class Document(Base, TimestampMixin):
-	"""Represents a scraped reference documentation page."""
+	"""Represents a scraped FastAPI reference documentation page."""
 
 	__tablename__ = "documents"
 
@@ -17,7 +17,12 @@ class Document(Base, TimestampMixin):
 	url: Mapped[str] = mapped_column(String(1024), unique=True, nullable=False, index=True)
 	file_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
-	# Relation to chunks with selectin eager loading for async compatibility
+	toc_sections: Mapped[List[Dict[str, Any]]] = mapped_column(
+		JSON().with_variant(JSONB(), "postgresql"),
+		nullable=False,
+		default=list,
+	)
+
 	chunks: Mapped[List["DocumentChunk"]] = relationship(
 		"DocumentChunk",
 		back_populates="document",
@@ -31,7 +36,7 @@ class Document(Base, TimestampMixin):
 
 
 class DocumentChunk(Base, TimestampMixin):
-	"""Represents an individual text chunk extracted from a document for RAG."""
+	"""Represents a structural section chunk extracted from `md-content__inner md-typeset`."""
 
 	__tablename__ = "document_chunks"
 
@@ -40,9 +45,24 @@ class DocumentChunk(Base, TimestampMixin):
 		Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
 	)
 	chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+
+	# Structural fields from `md-sidebar__scrollwrap` & headings
+	section_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+	anchor: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+	section_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+	breadcrumb: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+	symbol_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+	# Clean section text content
 	text: Mapped[str] = mapped_column(Text, nullable=False)
 
-	# JSON / JSONB metadata (start/end offsets, tags, headers, etc.)
+	# Precomputed dense embedding vector (e.g. 384-d float list from multilingual-e5-small)
+	embedding: Mapped[Optional[List[float]]] = mapped_column(
+		JSON().with_variant(JSONB(), "postgresql"),
+		nullable=True,
+	)
+
+	# JSON / JSONB metadata (signature, sub_chunk_index, start/end offsets, etc.)
 	metadata_json: Mapped[Dict[str, Any]] = mapped_column(
 		JSON().with_variant(JSONB(), "postgresql"),
 		nullable=False,
@@ -57,4 +77,7 @@ class DocumentChunk(Base, TimestampMixin):
 	)
 
 	def __repr__(self) -> str:
-		return f"<DocumentChunk(id={self.id}, doc_id={self.document_id}, index={self.chunk_index})>"
+		return (
+			f"<DocumentChunk(id={self.id}, doc_id={self.document_id}, "
+			f"index={self.chunk_index}, section='{self.section_title}')>"
+		)

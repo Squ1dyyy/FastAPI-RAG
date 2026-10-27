@@ -1,1 +1,4 @@
 """RAGFastAPI source package."""
+from .pipeline import HybridRAGPipeline
+
+__all__ = ["HybridRAGPipeline"]
