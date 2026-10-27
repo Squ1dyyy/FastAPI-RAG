@@ -1,3 +1,4 @@
+import asyncio
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
@@ -6,12 +7,7 @@ from src.retrieval.base import BaseRetriever
 
 
 class HybridRetriever(BaseRetriever):
-	"""Hybrid retriever combining Dense (semantic) and Sparse (BM25-Fast) retrieval.
-
-	Supports:
-	- Reciprocal Rank Fusion (RRF)
-	- Convex combination with score normalization (Linear)
-	"""
+	"""Hybrid retriever combining Dense (E5 GPU) and Sparse (BM25-Fast) retrieval."""
 
 	def __init__(
 		self,
@@ -28,11 +24,27 @@ class HybridRetriever(BaseRetriever):
 		self.rrf_k = rrf_k if rrf_k is not None else config.rrf_k
 
 	def index(self, corpus: List[Dict[str, Any]]):
-		"""Build indices for both sparse (BM25) and dense retrievers."""
+		"""Build indices for both sparse (BM25-Fast) and dense retrievers."""
 		if hasattr(self.sparse_retriever, "index"):
 			self.sparse_retriever.index(corpus)
 		if hasattr(self.dense_retriever, "index"):
 			self.dense_retriever.index(corpus)
+
+	async def index_async(self, corpus: List[Dict[str, Any]]):
+		"""Asynchronously build indices for both sparse and dense retrievers concurrently."""
+		tasks = []
+		if hasattr(self.sparse_retriever, "index_async"):
+			tasks.append(self.sparse_retriever.index_async(corpus))
+		elif hasattr(self.sparse_retriever, "index"):
+			tasks.append(asyncio.to_thread(self.sparse_retriever.index, corpus))
+
+		if hasattr(self.dense_retriever, "index_async"):
+			tasks.append(self.dense_retriever.index_async(corpus))
+		elif hasattr(self.dense_retriever, "index"):
+			tasks.append(asyncio.to_thread(self.dense_retriever.index, corpus))
+
+		if tasks:
+			await asyncio.gather(*tasks)
 
 	def _rrf_fusion(
 		self,
@@ -130,8 +142,8 @@ class HybridRetriever(BaseRetriever):
 		return results
 
 	def retrieve(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-		"""Retrieve and fuse candidate documents from both retrievers."""
-		candidate_k = max(top_k * 2, 10)
+		"""Synchronously retrieve and fuse candidate documents from both retrievers."""
+		candidate_k = max(top_k * 2, config.retrieval_candidate_k)
 
 		dense_candidates = self.dense_retriever.retrieve(query, top_k=candidate_k)
 		sparse_candidates = self.sparse_retriever.retrieve(query, top_k=candidate_k)
@@ -139,3 +151,20 @@ class HybridRetriever(BaseRetriever):
 		if self.fusion_method == "linear":
 			return self._linear_fusion(dense_candidates, sparse_candidates, top_k=top_k)
 		return self._rrf_fusion(dense_candidates, sparse_candidates, top_k=top_k)
+
+	async def retrieve_async(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+		"""Asynchronously retrieve and fuse candidate documents concurrently via asyncio.gather."""
+		candidate_k = max(top_k * 2, config.retrieval_candidate_k)
+
+		dense_candidates, sparse_candidates = await asyncio.gather(
+			self.dense_retriever.retrieve_async(query, top_k=candidate_k),
+			self.sparse_retriever.retrieve_async(query, top_k=candidate_k),
+		)
+
+		if self.fusion_method == "linear":
+			return await asyncio.to_thread(
+				self._linear_fusion, dense_candidates, sparse_candidates, top_k
+			)
+		return await asyncio.to_thread(
+			self._rrf_fusion, dense_candidates, sparse_candidates, top_k
+		)

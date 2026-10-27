@@ -1,4 +1,5 @@
-"""Full Hybrid RAG demonstration: BM25-Fast + multilingual-e5-small + TinyBERT CrossEncoder Reranker."""
+"""Asynchronous GPU-accelerated Hybrid RAG demo with BM25-Fast, E5-small, TinyBERT Reranker, and OpenRouter."""
+import asyncio
 import sys
 from pathlib import Path
 
@@ -6,15 +7,20 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
 	sys.path.insert(0, str(ROOT_DIR))
 
+from configs.config import config
 from src.pipeline import HybridRAGPipeline
 
 
-def main():
-	print("Initializing HybridRAGPipeline (BM25-Fast + intfloat/multilingual-e5-small + TinyBERT Reranker)...")
-	pipeline = HybridRAGPipeline()
+async def main():
+	active_device = config.resolve_device()
+	print(
+		f"Initializing Async HybridRAGPipeline on device='{active_device}' "
+		f"(BM25-Fast + {config.embedding_model_name} + {config.reranker_model_name})..."
+	)
+	pipeline = HybridRAGPipeline(device=active_device)
 
-	num_chunks = pipeline.build_index_from_files()
-	print(f"Indexed {num_chunks} structural documentation chunks from data/*.html")
+	num_chunks = await pipeline.build_index_from_files_async()
+	print(f"Indexed {num_chunks} structural documentation chunks from {config.data_dir}")
 
 	queries = [
 		"How to raise HTTPException with custom status_code and headers?",
@@ -22,10 +28,22 @@ def main():
 		"APIRouter include_router prefix and tags parameters",
 	]
 
+	has_openrouter_key = bool(
+		config.openrouter_api_key
+		and config.openrouter_api_key != "your_openrouter_api_key_here"
+	)
+
 	for q in queries:
 		print(f"\n==========================================")
 		print(f"Query: '{q}'")
-		results = pipeline.search(q, top_k=3, candidate_k=10, rerank=True)
+		if has_openrouter_key:
+			rag_result = await pipeline.answer(q, top_k=3)
+			print(f"\n[OpenRouter Answer ({config.openrouter_model})]:\n{rag_result['answer']}")
+			print(f"Metrics: {rag_result['metrics']} | Latency: {rag_result['latency_seconds']}s")
+			results = rag_result["context"]
+		else:
+			results = await pipeline.search_async(q, top_k=3, candidate_k=10, rerank=True)
+
 		for idx, r in enumerate(results, 1):
 			breadcrumb = r.get("breadcrumb", "unknown")
 			sec_url = r.get("section_url", "")
@@ -39,4 +57,4 @@ def main():
 
 
 if __name__ == "__main__":
-	main()
+	asyncio.run(main())

@@ -1,3 +1,4 @@
+import asyncio
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -11,9 +12,13 @@ from configs.config import config
 class TextChunker:
 	"""Splits text into overlapping chunks for embedding and retrieval."""
 
-	def __init__(self, chunk_size: int = 1200, chunk_overlap: int = 200):
-		self.chunk_size = chunk_size
-		self.chunk_overlap = chunk_overlap
+	def __init__(
+		self,
+		chunk_size: Optional[int] = None,
+		chunk_overlap: Optional[int] = None,
+	):
+		self.chunk_size = chunk_size or config.chunk_size
+		self.chunk_overlap = chunk_overlap or config.chunk_overlap
 
 	def split_text(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
 		"""Split text into chunks with metadata."""
@@ -39,6 +44,12 @@ class TextChunker:
 			start += step
 
 		return chunks
+
+	async def split_text_async(
+		self, text: str, metadata: Optional[Dict[str, Any]] = None
+	) -> List[Dict[str, Any]]:
+		"""Asynchronously split text into overlapping chunks."""
+		return await asyncio.to_thread(self.split_text, text, metadata)
 
 
 class FastAPIHTMLParser:
@@ -97,10 +108,7 @@ class FastAPIHTMLParser:
 		return urljoin(config.reference_url, f"{clean_path}/") if clean_path else config.reference_url
 
 	def parse_toc_sidebar(self, soup: BS) -> List[Dict[str, Any]]:
-		"""Parse `md-sidebar__scrollwrap` inside `md-sidebar--secondary` to get TOC pieces.
-
-		:return: List of dicts with `anchor`, `title`, `breadcrumb`, `level`.
-		"""
+		"""Parse `md-sidebar__scrollwrap` inside `md-sidebar--secondary` to get TOC pieces."""
 		secondary_sidebar = soup.find("div", class_="md-sidebar--secondary")
 		if not secondary_sidebar:
 			return []
@@ -208,10 +216,7 @@ class FastAPIHTMLParser:
 		doc_url: Optional[str] = None,
 		fallback_title: str = "",
 	) -> Dict[str, Any]:
-		"""Parse an HTML document into metadata, TOC list, and structured section chunks.
-
-		:return: Dict with keys: `title`, `url`, `toc`, `sections`, `chunks`.
-		"""
+		"""Parse an HTML document into metadata, TOC list, and structured section chunks."""
 		soup = BS(html_content, "html.parser")
 		doc_title = self.extract_doc_title(soup, fallback_name=fallback_title)
 		base_url = doc_url or self.extract_canonical_url(soup, file_stem=fallback_title)
@@ -368,6 +373,17 @@ class FastAPIHTMLParser:
 			"chunks": chunks,
 		}
 
+	async def parse_html_sections_async(
+		self,
+		html_content: str,
+		doc_url: Optional[str] = None,
+		fallback_title: str = "",
+	) -> Dict[str, Any]:
+		"""Asynchronously parse HTML document sections."""
+		return await asyncio.to_thread(
+			self.parse_html_sections, html_content, doc_url, fallback_title
+		)
+
 	def parse_file(self, file_path: Path, doc_url: Optional[str] = None) -> Dict[str, Any]:
 		"""Parse an HTML file from disk into structured document metadata, TOC, and chunks."""
 		html = file_path.read_text(encoding="utf-8")
@@ -380,6 +396,12 @@ class FastAPIHTMLParser:
 		for ch in parsed["chunks"]:
 			ch["metadata"]["file_path"] = str(file_path)
 		return parsed
+
+	async def parse_file_async(
+		self, file_path: Path, doc_url: Optional[str] = None
+	) -> Dict[str, Any]:
+		"""Asynchronously read and parse an HTML file from disk."""
+		return await asyncio.to_thread(self.parse_file, file_path, doc_url)
 
 
 class HTMLCleaner:
@@ -406,3 +428,7 @@ class HTMLCleaner:
 		"""Read and clean an HTML file from disk."""
 		html = file_path.read_text(encoding="utf-8")
 		return self.clean_html(html)
+
+	async def clean_file_async(self, file_path: Path) -> str:
+		"""Asynchronously read and clean an HTML file from disk."""
+		return await asyncio.to_thread(self.clean_file, file_path)

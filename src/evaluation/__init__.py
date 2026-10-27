@@ -1,3 +1,3 @@
-from .evaluator import BaseEvaluator
+from .evaluator import BaseEvaluator, RAGEvaluator
 
-__all__ = ["BaseEvaluator"]
+__all__ = ["BaseEvaluator", "RAGEvaluator"]

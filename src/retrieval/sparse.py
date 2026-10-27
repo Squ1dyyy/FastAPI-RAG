@@ -1,3 +1,4 @@
+import asyncio
 import math
 import re
 from collections import Counter, defaultdict
@@ -15,11 +16,7 @@ except ImportError:
 
 
 class BM25Retriever(BaseRetriever):
-	"""High-performance BM25-Fast lexical retriever.
-
-	Uses `bm25s` eager sparse scoring backend when installed (with inverted-index fallback),
-	and camelCase/snake_case identifier-aware tokenization tailored for code & API docs.
-	"""
+	"""High-performance BM25-Fast lexical retriever with async support."""
 
 	def __init__(
 		self,
@@ -61,10 +58,7 @@ class BM25Retriever(BaseRetriever):
 		return tokens
 
 	def index(self, corpus: List[Dict[str, Any]]):
-		"""Build BM25-Fast index over the given corpus of document chunks.
-
-		:param corpus: List of document chunk dicts containing 'text' and optional section fields.
-		"""
+		"""Build BM25-Fast index over the given corpus of document chunks."""
 		self.corpus = corpus
 		self.doc_count = len(corpus)
 		self.doc_lengths = []
@@ -109,6 +103,10 @@ class BM25Retriever(BaseRetriever):
 		if self.use_bm25s:
 			self._bm25s_model = bm25s.BM25(k1=self.k1, b=self.b)
 			self._bm25s_model.index(tokenized_corpus, show_progress=False)
+
+	async def index_async(self, corpus: List[Dict[str, Any]]):
+		"""Asynchronously build BM25-Fast index."""
+		await asyncio.to_thread(self.index, corpus)
 
 	def retrieve(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
 		"""Retrieve top_k highest scoring documents for the query using BM25-Fast."""

@@ -1,4 +1,4 @@
-"""Ingest structural HTML sections and TOC from `data/` into PostgreSQL with SQLAlchemy."""
+"""Asynchronously ingest structural HTML sections and TOC from `data/` into PostgreSQL with SQLAlchemy."""
 import asyncio
 import sys
 from pathlib import Path
@@ -25,22 +25,23 @@ async def main():
 		await init_db(engine)
 		print("Connected to PostgreSQL successfully.")
 	except Exception as exc:
-		print(f"PostgreSQL connection failed ({exc}). Falling back to local SQLite database.")
-		engine, session_factory = create_engine_and_session("sqlite+aiosqlite:///data/rag.db")
+		print(f"PostgreSQL connection failed ({exc}). Falling back to {config.fallback_sqlite_url}.")
+		engine, session_factory = create_engine_and_session(config.fallback_sqlite_url)
 		await init_db(engine)
 
 	parser = FastAPIHTMLParser()
-	data_files = sorted(config.data_dir.glob("*.html"))
-	print(f"Parsing structural sections (md-sidebar__scrollwrap + md-content__inner) from {len(data_files)} files...")
+	data_files = [
+		f for f in sorted(config.data_dir.glob("*.html"))
+		if f.name != config.cached_routers_filename
+	]
+	print(f"Asynchronously parsing structural sections from {len(data_files)} files...")
+
+	parsed_docs = await asyncio.gather(*[parser.parse_file_async(f) for f in data_files])
 
 	async with session_factory() as session:
 		repo = DocumentRepository(session)
-		doc_count = 0
 		total_toc = 0
-		for f in data_files:
-			if f.name == "cached_routers.html":
-				continue
-			parsed = parser.parse_file(f)
+		for parsed in parsed_docs:
 			await repo.save_document(
 				title=parsed["title"],
 				url=parsed["url"],
@@ -48,11 +49,10 @@ async def main():
 				toc_sections=parsed["toc"],
 				chunks_data=parsed["chunks"],
 			)
-			doc_count += 1
 			total_toc += len(parsed["toc"])
 
 		await session.commit()
-		print(f"Ingested {doc_count} documents ({total_toc} TOC items from md-sidebar__scrollwrap).")
+		print(f"Ingested {len(parsed_docs)} documents ({total_toc} TOC items from md-sidebar__scrollwrap).")
 
 		corpus = await repo.get_all_chunks_for_indexing()
 		print(f"Retrieved {len(corpus)} structural section chunks ready for Hybrid RAG indexing.")
